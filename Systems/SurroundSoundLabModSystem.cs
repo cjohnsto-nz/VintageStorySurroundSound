@@ -7,10 +7,12 @@ namespace SurroundSoundLab;
 
 public class SurroundSoundLabModSystem : ModSystem
 {
+    private ICoreClientAPI clientApi;
     private Harmony harmony;
     private ChannelTestService testService;
     private SurroundDebugDialog debugDialog;
     private LeafRustleEmitterSystem leafRustleEmitterSystem;
+    private LeafRustleDebugRenderer leafRustleDebugRenderer;
 
     public override void Start(ICoreAPI api)
     {
@@ -21,6 +23,7 @@ public class SurroundSoundLabModSystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         base.StartClientSide(api);
+        clientApi = api;
         harmony = new Harmony("vintagestorysurroundsound.audioopenal");
         harmony.PatchAll();
         CustomSoundRegistry.Register(api, Mod.Logger);
@@ -33,8 +36,13 @@ public class SurroundSoundLabModSystem : ModSystem
         if (SurroundSoundLabConfigManager.Current.EnableExperimentalLeafRustleEmitters)
         {
             leafRustleEmitterSystem = new LeafRustleEmitterSystem(api);
+            if (SurroundSoundLabConfigManager.Current.ShowLeafRustleDebugVisuals)
+            {
+                leafRustleDebugRenderer = new LeafRustleDebugRenderer(api, leafRustleEmitterSystem);
+                api.Event.RegisterRenderer(leafRustleDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-leafdebug");
+            }
         }
-        debugDialog = new SurroundDebugDialog(api, testService);
+        debugDialog = new SurroundDebugDialog(api, testService, leafRustleEmitterSystem);
         api.Gui.RegisterDialog(debugDialog);
         api.Input.RegisterHotKey("vintagestorysurroundsound.toggledebug", "Surround Sound: Toggle Debug Panel", GlKeys.F9, HotkeyType.GUIOrOtherControls);
         api.Input.SetHotKeyHandler("vintagestorysurroundsound.toggledebug", OnToggleDebugPanel);
@@ -66,9 +74,21 @@ public class SurroundSoundLabModSystem : ModSystem
 
     public override void Dispose()
     {
+        if (leafRustleDebugRenderer != null)
+        {
+            if (clientApi != null)
+            {
+                clientApi.Event.UnregisterRenderer(leafRustleDebugRenderer, EnumRenderStage.Opaque);
+            }
+
+            leafRustleDebugRenderer.Dispose();
+            leafRustleDebugRenderer = null;
+        }
+
         leafRustleEmitterSystem?.Dispose();
         testService?.Dispose();
         harmony?.UnpatchAll(harmony.Id);
+        clientApi = null;
         base.Dispose();
     }
 }
