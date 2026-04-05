@@ -18,6 +18,7 @@ public sealed class SurroundSoundLabConfig
 {
     public SurroundOutputMode OutputMode { get; set; } = SurroundOutputMode.Auto;
     public bool UpmixStereoToSurround { get; set; } = true;
+    public float StereoUpmixGainDb { get; set; } = -6f;
     public bool EnableSoundAudit { get; set; } = false;
 }
 

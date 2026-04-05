@@ -400,6 +400,7 @@ internal static class NonMonoChannelMaskController
             return originalPcm;
         }
 
+        float gain = DbToLinear(SurroundSoundLabConfigManager.Current.StereoUpmixGainDb);
         int stereoFrameSize = 2 * bytesPerSample;
         int frameCount = originalPcm.Length / stereoFrameSize;
         byte[] expanded = new byte[frameCount * targetChannels * bytesPerSample];
@@ -409,8 +410,8 @@ internal static class NonMonoChannelMaskController
         for (int frameIndex = 0; frameIndex < frameCount; frameIndex++)
         {
             int sourceOffset = frameIndex * stereoFrameSize;
-            float left = ReadSampleAsFloat(originalPcm, sourceOffset, bytesPerSample, isEightBit);
-            float right = ReadSampleAsFloat(originalPcm, sourceOffset + bytesPerSample, bytesPerSample, isEightBit);
+            float left = ReadSampleAsFloat(originalPcm, sourceOffset, bytesPerSample, isEightBit) * gain;
+            float right = ReadSampleAsFloat(originalPcm, sourceOffset + bytesPerSample, bytesPerSample, isEightBit) * gain;
             float center = (left + right) * 0.5f;
 
             Array.Clear(mapped, 0, mapped.Length);
@@ -461,6 +462,11 @@ internal static class NonMonoChannelMaskController
         }
 
         return expanded;
+    }
+
+    private static float DbToLinear(float decibels)
+    {
+        return MathF.Pow(10f, decibels / 20f);
     }
 
     private static float ReadSampleAsFloat(byte[] data, int offset, int bytesPerSample, bool isEightBit)
