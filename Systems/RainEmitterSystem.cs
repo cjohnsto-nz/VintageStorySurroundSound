@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -140,6 +141,12 @@ internal sealed class RainEmitterSystem : IDisposable
         Cleanup(nowMs);
         CullOutOfRangeEmitters(playerEntity.Pos, nowMs);
 
+        if (!IsRainActive(out _))
+        {
+            ClearCandidateCache();
+            return;
+        }
+
         Vec3d playerPos = playerEntity.Pos.XYZ;
         float roomLoss = GetRoomVolumePitchLoss(playerEntity.Pos.AsBlockPos);
         if (ShouldRefreshCandidates(playerPos, nowMs))
@@ -272,6 +279,14 @@ internal sealed class RainEmitterSystem : IDisposable
         hasLastRefreshPos = true;
     }
 
+    private void ClearCandidateCache()
+    {
+        foreach (List<RainCandidate> list in candidatesByQuadrant.Values)
+        {
+            list.Clear();
+        }
+    }
+
     private RainCandidate PickCandidateForSlot(List<RainCandidate> candidates, RainEmitterQuadrant quadrant, int slotIndex)
     {
         if (candidates.Count == 1)
@@ -376,6 +391,64 @@ internal sealed class RainEmitterSystem : IDisposable
 
         int distanceToRainFall = blockAccessor.GetDistanceToRainFall(pos, 12, 4);
         return GameMath.Clamp((float)Math.Pow(Math.Max(0f, (distanceToRainFall - 2f) / 10f), 2.0), 0f, 1f);
+    }
+
+    private bool IsRainActive(out float rainfall)
+    {
+        rainfall = 0f;
+
+        ModSystem weatherSystem = capi.ModLoader?.GetModSystem("Vintagestory.GameContent.WeatherSystemClient");
+        if (weatherSystem == null)
+        {
+            return false;
+        }
+
+        object climate = weatherSystem.GetType().GetField("clientClimateCond", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)?.GetValue(weatherSystem);
+        if (climate == null)
+        {
+            return false;
+        }
+
+        rainfall = ReadFloatMember(climate, "Rainfall");
+        if (rainfall <= 0.02f)
+        {
+            return false;
+        }
+
+        float temperature = ReadFloatMember(climate, "Temperature");
+        object blendedWeatherData = weatherSystem.GetType().GetProperty("BlendedWeatherData", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)?.GetValue(weatherSystem);
+        if (blendedWeatherData == null)
+        {
+            return false;
+        }
+
+        string precipitationType = ReadMember(blendedWeatherData, "BlendedPrecType")?.ToString() ?? string.Empty;
+        float snowThresholdTemp = ReadFloatMember(blendedWeatherData, "snowThresholdTemp");
+        if (precipitationType.Equals("Auto", StringComparison.OrdinalIgnoreCase))
+        {
+            precipitationType = temperature < snowThresholdTemp ? "Snow" : "Rain";
+        }
+
+        return precipitationType.Equals("Rain", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static object ReadMember(object target, string memberName)
+    {
+        Type type = target.GetType();
+        PropertyInfo property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        if (property != null)
+        {
+            return property.GetValue(target);
+        }
+
+        FieldInfo field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        return field?.GetValue(target);
+    }
+
+    private static float ReadFloatMember(object target, string memberName)
+    {
+        object value = ReadMember(target, memberName);
+        return value is float floatValue ? floatValue : 0f;
     }
 
     private static RainEmitterQuadrant GetQuadrantForSlot(int slotIndex)

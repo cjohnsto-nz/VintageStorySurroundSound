@@ -11,8 +11,10 @@ namespace SurroundSoundLab;
 internal sealed class LeafRustleEmitterSystem : IDisposable
 {
     private const long LeafEmitterLifetimeMs = 10000;
+    private const long LeafVoiceLifetimeMs = 10750;
     private const int MaxActiveLeafEmitters = 100;
     private const int MaxActiveEmittersPerPool = 25;
+    private const int MaxConcurrentLeafVoices = 75;
     private const long DiscoveryRefreshMs = 750;
     private const int PlaybackTickMs = 150;
     private const double ImmediateRingMaxDistance = 2.0;
@@ -43,6 +45,7 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
     private readonly Random random = new();
     private readonly Dictionary<long, long> recentLeafTriggers = new();
     private readonly Dictionary<long, ActiveLeafEmitterState> activeLeafEmitters = new();
+    private readonly List<ActiveLeafVoice> activeLeafVoices = new();
     private readonly List<DebugEmitter> activeEmitters = new();
     private readonly object activeEmittersLock = new();
 
@@ -102,6 +105,12 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
     {
         CleanupCooldowns(nowMs);
         return activeLeafEmitters.Count;
+    }
+
+    public int GetActiveLeafVoiceCount(long nowMs)
+    {
+        CleanupCooldowns(nowMs);
+        return activeLeafVoices.Count;
     }
 
     public float GetCurrentWindExposure()
@@ -422,8 +431,14 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
 
     private bool PlayEmitterAt(double sx, double sy, double sz, bool isReedLike, float windExposure, float roomLoss, float leafFactor, LeafRustleEmitterRing ring, long nowMs)
     {
+        CleanupLeafVoiceTracking(nowMs);
+        if (activeLeafVoices.Count >= MaxConcurrentLeafVoices)
+        {
+            return false;
+        }
+
         AssetLocation sound = ChooseRustleAlias(windExposure);
-        float volume = GameMath.Clamp(0.018f + (windExposure * 0.028f) + (leafFactor * 0.012f), 0.018f, 0.08f);
+        float volume = GameMath.Clamp(0.036f + (windExposure * 0.048f) + (leafFactor * 0.022f), 0.036f, 0.15f);
         volume *= (1f - roomLoss);
         if (volume <= 0.003f)
         {
@@ -436,6 +451,7 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
         pitch = GameMath.Max(0f, pitch - (roomLoss / 4f));
 
         capi.World.PlaySoundAt(sound, sx, sy, sz, null, EnumSoundType.Ambient, pitch, 150f, volume);
+        activeLeafVoices.Add(new ActiveLeafVoice(nowMs + LeafVoiceLifetimeMs, ring));
         RegisterDebugEmitter(sx, sy, sz, ring, nowMs, volume);
         return true;
     }
@@ -491,6 +507,8 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
 
     private void CleanupCooldowns(long nowMs)
     {
+        CleanupLeafVoiceTracking(nowMs);
+
         lock (activeEmittersLock)
         {
             activeEmitters.RemoveAll(emitter => emitter.ExpiresMs <= nowMs);
@@ -528,6 +546,11 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
         {
             activeLeafEmitters.Remove(key);
         }
+    }
+
+    private void CleanupLeafVoiceTracking(long nowMs)
+    {
+        activeLeafVoices.RemoveAll(voice => voice.ExpiresMs <= nowMs);
     }
 
     private void ClearCandidateCache()
@@ -704,6 +727,7 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
 
     private readonly record struct CandidateLeafBlock(BlockPos Pos, double Score, bool IsReedLike);
     private readonly record struct ActiveLeafEmitterState(long ExpiresMs, LeafRustleEmitterRing Ring);
+    private readonly record struct ActiveLeafVoice(long ExpiresMs, LeafRustleEmitterRing Ring);
     private readonly record struct FacingContext(bool IsMoving, float MovementFactor, double FacingNormX, double FacingNormZ);
 
     private sealed class DebugEmitter
