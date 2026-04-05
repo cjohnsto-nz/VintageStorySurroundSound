@@ -6,7 +6,7 @@
     <GamePath>C:\Program Files (x86)\Steam\steamapps\common\Vintage Story</GamePath>
     <GamePath Condition="Exists('C:\Users\$(USERNAME)\AppData\Roaming\Vintagestory')">C:\Users\$(USERNAME)\AppData\Roaming\Vintagestory</GamePath>
     <GamePath Condition="Exists('$(VINTAGE_STORY)')">$(VINTAGE_STORY)</GamePath>
-    <AssemblyName>SurroundSoundLab</AssemblyName>
+    <AssemblyName>VintageStorySurroundSound</AssemblyName>
     <RootNamespace>SurroundSoundLab</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
@@ -36,7 +36,7 @@
 
   <Target Name="PackageMod" AfterTargets="Build">
     <PropertyGroup>
-      <ModFolderName>SurroundSoundLab</ModFolderName>
+      <ModFolderName>VintageStorySurroundSound</ModFolderName>
       <ModPackageDir>ModPackage\$(ModFolderName)\</ModPackageDir>
       <FullModPackagePath>$(OutputPath)\$(ModPackageDir)</FullModPackagePath>
     </PropertyGroup>

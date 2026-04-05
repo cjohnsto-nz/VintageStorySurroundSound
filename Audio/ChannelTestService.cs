@@ -58,7 +58,7 @@ internal sealed class ChannelTestService : IDisposable
                 var probe = RunLabContextProbe();
                 LastLabProbe = probe;
                 SurroundSessionLogWriter.AppendLabProbe(probe);
-                capi.Event.EnqueueMainThreadTask(() => LabProbeCompleted?.Invoke(probe), "surroundsoundlab-labprobe");
+                capi.Event.EnqueueMainThreadTask(() => LabProbeCompleted?.Invoke(probe), "vintagestorysurroundsound-labprobe");
             }
             finally
             {
@@ -283,7 +283,7 @@ internal sealed class ChannelTestService : IDisposable
             try
             {
                 var result = RunLabContextTest(formatKey, formatInfo, activeChannelIndex);
-                capi.Event.EnqueueMainThreadTask(() => PublishResult(result), "surroundsoundlab-labtest");
+                capi.Event.EnqueueMainThreadTask(() => PublishResult(result), "vintagestorysurroundsound-labtest");
             }
             finally
             {

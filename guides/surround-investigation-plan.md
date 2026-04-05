@@ -50,7 +50,7 @@ The first implementation of that context patch is now in the mod and awaiting va
 
 - `F9` opens the debug panel.
 - The panel supports both `Game Context` and `Lab Context` test modes.
-- Reports remain under `VintagestoryData/Logs/SurroundSoundLab`.
+- Reports remain under `VintagestoryData/Logs/VintageStorySurroundSound`.
 - Structured session logs are written as JSONL in the same folder.
 - Reports now explicitly distinguish between "no current context" and "context available".
 - Detailed implementation notes now live in `engine-multichannel-investigation.md`.

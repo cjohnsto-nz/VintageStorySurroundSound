@@ -21,7 +21,7 @@ This mod exists to explore whether Vintage Story can be extended toward surround
 - The widened `GetSoundFormat()` patch alone does not make the game-owned path multichannel.
 - A Harmony patch now replaces `AudioOpenAl.initContext(...)` to request `5.1` output and report the actual accepted mode.
 - The `initContext(...)` patch must be followed by an immediate context recreation because the game creates audio before mods finish loading.
-- `surroundsoundlab.json` now supports user-selectable output modes with `Auto` as the default.
+- `vintagestorysurroundsound.json` now supports user-selectable output modes with `Auto` as the default.
 - Sound audit events now record `LoadedSoundNative` source creation, playback start, and disposal into the session JSONL.
 - The mod can now write an aggregated per-session sound-audit summary JSON grouped by sound asset.
 - The `F9` panel now supports non-mono speaker masking for `FL`, `FR`, `FC`, `LFE`, `SL`, and `SR`.
@@ -64,6 +64,6 @@ This mod exists to explore whether Vintage Story can be extended toward surround
 
 ## Current Session Output
 
-Reports are written under `VintagestoryData/Logs/SurroundSoundLab`.
+Reports are written under `VintagestoryData/Logs/VintageStorySurroundSound`.
 The debug panel is available in-game on `F9`.
 Structured session logs are written in the same folder as `session-*.jsonl`.

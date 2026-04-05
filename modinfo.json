@@ -1,10 +1,10 @@
 {
   "type": "code",
-  "modid": "surroundsoundlab",
+  "modid": "vintagestorysurroundsound",
   "name": "Surround Sound",
   "authors": ["chrisunfocused"],
   "version": "0.1.0",
-  "description": "Lets players choose Auto, Stereo, Stereo HRTF, Quad, 5.1, 6.1, or 7.1 output modes for Vintage Story, with stereo upmix and optional debug tools.",
+  "description": "Enable multichannel output modes for surround sound",
   "dependencies": {
     "game": "1.22.0-rc.1"
   },

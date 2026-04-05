@@ -20,14 +20,14 @@ public class SurroundSoundLabModSystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         base.StartClientSide(api);
-        harmony = new Harmony("surroundsoundlab.audioopenal");
+        harmony = new Harmony("vintagestorysurroundsound.audioopenal");
         harmony.PatchAll();
         RecreateGameAudioContext(api);
         testService = new ChannelTestService(api);
         debugDialog = new SurroundDebugDialog(api, testService);
         api.Gui.RegisterDialog(debugDialog);
-        api.Input.RegisterHotKey("surroundsoundlab.toggledebug", "Surround Sound: Toggle Debug Panel", GlKeys.F9, HotkeyType.GUIOrOtherControls);
-        api.Input.SetHotKeyHandler("surroundsoundlab.toggledebug", OnToggleDebugPanel);
+        api.Input.RegisterHotKey("vintagestorysurroundsound.toggledebug", "Surround Sound: Toggle Debug Panel", GlKeys.F9, HotkeyType.GUIOrOtherControls);
+        api.Input.SetHotKeyHandler("vintagestorysurroundsound.toggledebug", OnToggleDebugPanel);
     }
 
     private static void RecreateGameAudioContext(ICoreClientAPI api)
@@ -44,7 +44,7 @@ public class SurroundSoundLabModSystem : ModSystem
         }
         catch (System.Exception ex)
         {
-            api.Logger.Warning("[SurroundSoundLab] Could not recreate game audio context after patch install: " + ex.Message);
+            api.Logger.Warning("[VintageStorySurroundSound] Could not recreate game audio context after patch install: " + ex.Message);
         }
     }
 

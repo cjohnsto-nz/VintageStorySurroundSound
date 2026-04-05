@@ -40,7 +40,7 @@ internal sealed class SurroundDebugDialog : GuiDialog
         ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog;
         ElementBounds textBounds = ElementBounds.Fixed(0, 0, 760, 360);
 
-        var composer = capi.Gui.CreateCompo("surroundsoundlab.debug", dialogBounds)
+        var composer = capi.Gui.CreateCompo("vintagestorysurroundsound.debug", dialogBounds)
             .AddShadedDialogBG(bgBounds)
             .AddDialogTitleBar("Surround Sound Debug", () => TryClose())
             .BeginChildElements(bgBounds)

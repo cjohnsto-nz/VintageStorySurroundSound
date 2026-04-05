@@ -1,16 +1,16 @@
-# Surround Sound Lab deployment script
+# VintageStorySurroundSound deployment script
 # Stops the game, builds the mod, packages it into the VS Mods folder, and relaunches the client.
 
 $ErrorActionPreference = 'Stop'
 
-$ProjectName = 'SurroundSoundLab'
+$ProjectName = 'VintageStorySurroundSound'
 $ProjectRoot = $PSScriptRoot
-$ProjectFile = Join-Path $ProjectRoot 'SurroundSoundLab.csproj'
+$ProjectFile = Join-Path $ProjectRoot 'VintageStorySurroundSound.csproj'
 $ModsDir = 'C:\Users\chris\AppData\Roaming\VintagestoryData\Mods'
 $VSProcessName = 'Vintagestory'
 $VSExePath = 'C:\Users\chris\AppData\Roaming\Vintagestory\Vintagestory.exe'
 $SourceDir = Join-Path $ProjectRoot "bin\Debug\ModPackage\$ProjectName"
-$TempDir = Join-Path $env:TEMP 'SurroundSoundLabTempDeploy'
+$TempDir = Join-Path $env:TEMP 'VintageStorySurroundSoundTempDeploy'
 
 Write-Host 'Checking for running Vintage Story process...' -ForegroundColor Cyan
 $vsProcess = Get-Process -Name $VSProcessName -ErrorAction SilentlyContinue
@@ -30,7 +30,7 @@ if ($LASTEXITCODE -ne 0) {
     throw 'dotnet clean failed.'
 }
 
-Write-Host 'Building SurroundSoundLab...' -ForegroundColor Cyan
+Write-Host 'Building VintageStorySurroundSound...' -ForegroundColor Cyan
 dotnet build $ProjectFile
 if ($LASTEXITCODE -ne 0) {
     throw 'dotnet build failed.'
@@ -47,12 +47,17 @@ if (Test-Path $ModInfoPath) {
     $Version = $modInfo.version
 }
 
-$ZipFileName = "surroundsoundlab_$Version.zip"
+$ModId = $modInfo.modid
+if ([string]::IsNullOrWhiteSpace($ModId)) {
+    $ModId = 'vintagestorysurroundsound'
+}
+
+$ZipFileName = "${ModId}_$Version.zip"
 $ZipFilePath = Join-Path $ModsDir $ZipFileName
 
 Write-Host "Deploying mod as '$ZipFileName' to '$ModsDir'..." -ForegroundColor Cyan
 
-Get-ChildItem -LiteralPath $ModsDir -Filter 'surroundsoundlab_*.zip' -ErrorAction SilentlyContinue |
+Get-ChildItem -LiteralPath $ModsDir -Filter "${ModId}_*.zip" -ErrorAction SilentlyContinue |
     Remove-Item -Force
 
 if (Test-Path $TempDir) {

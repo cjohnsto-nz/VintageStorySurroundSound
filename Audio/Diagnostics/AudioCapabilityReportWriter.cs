@@ -66,7 +66,7 @@ internal static class AudioCapabilityReportWriter
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "VintagestoryData",
             "Logs",
-            "SurroundSoundLab"
+            "VintageStorySurroundSound"
         );
     }
 

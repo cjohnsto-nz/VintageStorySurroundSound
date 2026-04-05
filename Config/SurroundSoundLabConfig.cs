@@ -24,7 +24,8 @@ public sealed class SurroundSoundLabConfig
 
 internal static class SurroundSoundLabConfigManager
 {
-    internal const string ConfigFileName = "surroundsoundlab.json";
+    internal const string ConfigFileName = "vintagestorysurroundsound.json";
+    internal const string LegacyConfigFileName = "surroundsoundlab.json";
 
     public static SurroundSoundLabConfig Current { get; private set; } = new();
 
@@ -32,12 +33,14 @@ internal static class SurroundSoundLabConfigManager
     {
         try
         {
-            Current = api.LoadModConfig<SurroundSoundLabConfig>(ConfigFileName) ?? new SurroundSoundLabConfig();
+            Current = api.LoadModConfig<SurroundSoundLabConfig>(ConfigFileName)
+                ?? api.LoadModConfig<SurroundSoundLabConfig>(LegacyConfigFileName)
+                ?? new SurroundSoundLabConfig();
             api.StoreModConfig(Current, ConfigFileName);
         }
         catch (System.Exception ex)
         {
-            logger.Warning("[SurroundSoundLab] Failed to load config, using defaults: " + ex.Message);
+            logger.Warning("[VintageStorySurroundSound] Failed to load config, using defaults: " + ex.Message);
             Current = new SurroundSoundLabConfig();
         }
     }

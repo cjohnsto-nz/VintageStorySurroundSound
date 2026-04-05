@@ -18,13 +18,13 @@ Systematically identify:
 - `Start()`
 - `Dispose()`
 
-When sound audit is enabled in `surroundsoundlab.json`, each event is written to the session JSONL log as a `sound-audit` event.
+When sound audit is enabled in `vintagestorysurroundsound.json`, each event is written to the session JSONL log as a `sound-audit` event.
 
 The mod can also write an aggregated summary JSON for the current session from the `F9` debug panel.
 
 ## Config
 
-`surroundsoundlab.json`
+`vintagestorysurroundsound.json`
 
 - `OutputMode`
   - `Auto` by default
