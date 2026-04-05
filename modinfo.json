@@ -1,0 +1,12 @@
+{
+  "type": "code",
+  "modid": "surroundsoundlab",
+  "name": "Surround Sound Lab",
+  "authors": ["chrisunfocused"],
+  "version": "0.1.0",
+  "description": "Experimental mod for investigating surround-sound support in Vintage Story.",
+  "dependencies": {
+    "game": "1.22.0-rc.1"
+  },
+  "side": "Client"
+}

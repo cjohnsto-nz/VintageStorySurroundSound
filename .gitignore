@@ -1,0 +1,10 @@
+# .NET build files
+bin/
+obj/
+
+# Packaged mod output
+bin/Debug/ModPackage/
+
+# IDE files
+.vs/
+*.code-workspace

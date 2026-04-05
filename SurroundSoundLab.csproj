@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <GamePath>C:\Program Files (x86)\Steam\steamapps\common\Vintage Story</GamePath>
+    <GamePath Condition="Exists('C:\Users\$(USERNAME)\AppData\Roaming\Vintagestory')">C:\Users\$(USERNAME)\AppData\Roaming\Vintagestory</GamePath>
+    <GamePath Condition="Exists('$(VINTAGE_STORY)')">$(VINTAGE_STORY)</GamePath>
+    <AssemblyName>SurroundSoundLab</AssemblyName>
+    <RootNamespace>SurroundSoundLab</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="VintagestoryAPI.dll">
+      <HintPath>$(GamePath)\VintagestoryAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="VintagestoryLib.dll">
+      <HintPath>$(GamePath)\VintagestoryLib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="OpenTK.Audio.OpenAL.dll">
+      <HintPath>$(GamePath)\Lib\OpenTK.Audio.OpenAL.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="OpenTK.Mathematics.dll">
+      <HintPath>$(GamePath)\Lib\OpenTK.Mathematics.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony.dll">
+      <HintPath>$(GamePath)\Lib\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="PackageMod" AfterTargets="Build">
+    <PropertyGroup>
+      <ModFolderName>SurroundSoundLab</ModFolderName>
+      <ModPackageDir>ModPackage\$(ModFolderName)\</ModPackageDir>
+      <FullModPackagePath>$(OutputPath)\$(ModPackageDir)</FullModPackagePath>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(FullModPackagePath)" />
+    <Copy SourceFiles="modinfo.json" DestinationFolder="$(FullModPackagePath)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(FullModPackagePath)" />
+  </Target>
+</Project>
