@@ -35,25 +35,25 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Audio\Assets\rain-surround-loud.wav">
+    <Content Include="Audio\Assets\rain-surround-loud.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-loud.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-loud.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\rain-surround-canopy.wav">
+    <Content Include="Audio\Assets\rain-surround-canopy.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-canopy.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-canopy.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\rain-surround-new.wav">
+    <Content Include="Audio\Assets\rain-surround-new.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-new.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-new.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\rain-surround-quiet.wav">
+    <Content Include="Audio\Assets\rain-surround-quiet.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-quiet.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-quiet.ogg</PackagePath>
     </Content>
     <Content Include="Audio\Assets\rain-mono-1.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -75,25 +75,25 @@
       <Pack>true</Pack>
       <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-4.wav</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\wind-surround-leafless2.wav">
+    <Content Include="Audio\Assets\wind-surround-leafless2.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\wind-surround-leafless2.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\wind-surround-leafless2.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\wind-surround-leafy2.wav">
+    <Content Include="Audio\Assets\wind-surround-leafy2.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\wind-surround-leafy2.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\wind-surround-leafy2.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\rumble-low.wav">
+    <Content Include="Audio\Assets\rumble-low.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rumble-low.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rumble-low.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\lightning-distant.wav">
+    <Content Include="Audio\Assets\lightning-distant.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\lightning-distant.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\lightning-distant.ogg</PackagePath>
     </Content>
     <Content Include="Audio\Assets\leaves-mono-1.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
