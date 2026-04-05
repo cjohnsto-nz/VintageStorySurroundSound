@@ -22,6 +22,10 @@ public class SurroundSoundLabModSystem : ModSystem
         base.StartClientSide(api);
         harmony = new Harmony("vintagestorysurroundsound.audioopenal");
         harmony.PatchAll();
+        if (SurroundSoundLabConfigManager.Current.ReplaceVanillaWeatherBeds)
+        {
+            WeatherBedOverrides.Apply(api, Mod.Logger);
+        }
         RecreateGameAudioContext(api);
         testService = new ChannelTestService(api);
         debugDialog = new SurroundDebugDialog(api, testService);

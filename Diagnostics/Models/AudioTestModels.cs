@@ -93,6 +93,10 @@ internal sealed class SoundAuditEvent
     public string BearingBucket { get; set; }
     public bool ShouldLoop { get; set; }
     public bool DisposeOnFinish { get; set; }
+    public float Volume { get; set; }
+    public float Pitch { get; set; }
+    public float LowPassFilter { get; set; }
+    public float ReverbDecayTime { get; set; }
     public float Range { get; set; }
     public float ReferenceDistance { get; set; }
     public string RequestedOutputMode { get; set; }

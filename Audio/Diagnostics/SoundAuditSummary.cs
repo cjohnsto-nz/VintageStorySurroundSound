@@ -160,6 +160,20 @@ internal static class SoundAuditSummaryCollector
         private float maxDistance = 0f;
         private double totalDistance;
         private int distanceSampleCount;
+        private float minVolume = float.MaxValue;
+        private float maxVolume = float.MinValue;
+        private double totalVolume;
+        private int volumeSampleCount;
+        private float minPitch = float.MaxValue;
+        private float maxPitch = float.MinValue;
+        private double totalPitch;
+        private int pitchSampleCount;
+        private float minRange = float.MaxValue;
+        private float maxRange = float.MinValue;
+        private float minReferenceDistance = float.MaxValue;
+        private float maxReferenceDistance = float.MinValue;
+        private bool shouldLoopEver;
+        private bool disposeOnFinishEver;
 
         public SoundAssetAuditAggregate(string location)
         {
@@ -184,6 +198,23 @@ internal static class SoundAuditSummaryCollector
             HasPositionEver |= auditEvent.HasPosition;
             HasNonZeroPositionEver |= auditEvent.HasNonZeroPosition;
             UsesDirectChannelsEver |= auditEvent.UsesDirectChannels;
+            shouldLoopEver |= auditEvent.ShouldLoop;
+            disposeOnFinishEver |= auditEvent.DisposeOnFinish;
+
+            minVolume = Math.Min(minVolume, auditEvent.Volume);
+            maxVolume = Math.Max(maxVolume, auditEvent.Volume);
+            totalVolume += auditEvent.Volume;
+            volumeSampleCount++;
+
+            minPitch = Math.Min(minPitch, auditEvent.Pitch);
+            maxPitch = Math.Max(maxPitch, auditEvent.Pitch);
+            totalPitch += auditEvent.Pitch;
+            pitchSampleCount++;
+
+            minRange = Math.Min(minRange, auditEvent.Range);
+            maxRange = Math.Max(maxRange, auditEvent.Range);
+            minReferenceDistance = Math.Min(minReferenceDistance, auditEvent.ReferenceDistance);
+            maxReferenceDistance = Math.Max(maxReferenceDistance, auditEvent.ReferenceDistance);
 
             if (!string.IsNullOrWhiteSpace(auditEvent.RequestedOutputMode))
             {
@@ -252,9 +283,21 @@ internal static class SoundAuditSummaryCollector
                 RequestedOutputModes = requestedOutputModes.OrderBy(mode => mode, StringComparer.Ordinal).ToList(),
                 ActualOutputModes = actualOutputModes.OrderBy(mode => mode, StringComparer.Ordinal).ToList(),
                 UsesDirectChannelsEver = UsesDirectChannelsEver,
+                ShouldLoopEver = shouldLoopEver,
+                DisposeOnFinishEver = disposeOnFinishEver,
                 RelativePositionEver = RelativePositionEver,
                 HasPositionEver = HasPositionEver,
                 HasNonZeroPositionEver = HasNonZeroPositionEver,
+                MinVolume = volumeSampleCount > 0 ? minVolume : null,
+                MaxVolume = volumeSampleCount > 0 ? maxVolume : null,
+                AverageVolume = volumeSampleCount > 0 ? (float?)(totalVolume / volumeSampleCount) : null,
+                MinPitch = pitchSampleCount > 0 ? minPitch : null,
+                MaxPitch = pitchSampleCount > 0 ? maxPitch : null,
+                AveragePitch = pitchSampleCount > 0 ? (float?)(totalPitch / pitchSampleCount) : null,
+                MinRange = minRange != float.MaxValue ? minRange : null,
+                MaxRange = maxRange != float.MinValue ? maxRange : null,
+                MinReferenceDistance = minReferenceDistance != float.MaxValue ? minReferenceDistance : null,
+                MaxReferenceDistance = maxReferenceDistance != float.MinValue ? maxReferenceDistance : null,
                 BearingCounts = bearingCounts.OrderByDescending(pair => pair.Value)
                     .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal),
                 MinDistance = distanceSampleCount > 0 ? minDistance : null,
@@ -311,9 +354,21 @@ internal sealed class SoundAssetAuditSummary
     public List<string> RequestedOutputModes { get; set; } = new();
     public List<string> ActualOutputModes { get; set; } = new();
     public bool UsesDirectChannelsEver { get; set; }
+    public bool ShouldLoopEver { get; set; }
+    public bool DisposeOnFinishEver { get; set; }
     public bool RelativePositionEver { get; set; }
     public bool HasPositionEver { get; set; }
     public bool HasNonZeroPositionEver { get; set; }
+    public float? MinVolume { get; set; }
+    public float? MaxVolume { get; set; }
+    public float? AverageVolume { get; set; }
+    public float? MinPitch { get; set; }
+    public float? MaxPitch { get; set; }
+    public float? AveragePitch { get; set; }
+    public float? MinRange { get; set; }
+    public float? MaxRange { get; set; }
+    public float? MinReferenceDistance { get; set; }
+    public float? MaxReferenceDistance { get; set; }
     public Dictionary<string, int> BearingCounts { get; set; } = new(StringComparer.Ordinal);
     public float? MinDistance { get; set; }
     public float? MaxDistance { get; set; }

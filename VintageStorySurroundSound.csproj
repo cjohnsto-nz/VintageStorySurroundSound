@@ -34,6 +34,44 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Audio\Assets\rain-surround-loud.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-loud.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\rain-surround-canopy.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-canopy.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\rain-surround-quiet.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-quiet.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\wind-surround-leafless.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\wind-surround-leafless.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\wind-surround-leafy.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\wind-surround-leafy.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\rumble-low.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rumble-low.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\lightning-distant.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\lightning-distant.wav</PackagePath>
+    </Content>
+  </ItemGroup>
+
   <Target Name="PackageMod" AfterTargets="Build">
     <PropertyGroup>
       <ModFolderName>VintageStorySurroundSound</ModFolderName>
@@ -44,5 +82,6 @@
     <MakeDir Directories="$(FullModPackagePath)" />
     <Copy SourceFiles="modinfo.json" DestinationFolder="$(FullModPackagePath)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(FullModPackagePath)" />
+    <Copy SourceFiles="@(Content)" DestinationFiles="@(Content->'$(FullModPackagePath)\%(PackagePath)')" SkipUnchangedFiles="true" />
   </Target>
 </Project>
