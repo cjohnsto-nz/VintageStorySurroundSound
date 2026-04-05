@@ -8,7 +8,7 @@ internal static class WeatherBedOverrides
 {
     private static readonly (AssetLocation Target, AssetLocation Replacement)[] Replacements =
     {
-        (new AssetLocation("game:sounds/weather/tracks/rain-leafless.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/tracks/rain-surround-loud.wav")),
+        (new AssetLocation("game:sounds/weather/tracks/rain-leafless.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/tracks/rain-surround-new.wav")),
         (new AssetLocation("game:sounds/weather/tracks/rain-leafy.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/tracks/rain-surround-quiet.wav")),
         (new AssetLocation("game:sounds/weather/wind-leafless.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/wind-surround-leafy2.wav")),
         (new AssetLocation("game:sounds/weather/wind-leafy.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/wind-surround-leafless2.wav")),

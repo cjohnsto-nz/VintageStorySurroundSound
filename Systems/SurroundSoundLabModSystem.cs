@@ -13,6 +13,8 @@ public class SurroundSoundLabModSystem : ModSystem
     private SurroundDebugDialog debugDialog;
     private LeafRustleEmitterSystem leafRustleEmitterSystem;
     private LeafRustleDebugRenderer leafRustleDebugRenderer;
+    private RainEmitterSystem rainEmitterSystem;
+    private RainEmitterDebugRenderer rainEmitterDebugRenderer;
 
     public override void Start(ICoreAPI api)
     {
@@ -41,10 +43,19 @@ public class SurroundSoundLabModSystem : ModSystem
                 api.Event.RegisterRenderer(leafRustleDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-leafdebug");
             }
         }
+        if (SurroundSoundLabConfigManager.Current.EnableExperimentalRainEmitters)
+        {
+            rainEmitterSystem = new RainEmitterSystem(api);
+            if (SurroundSoundLabConfigManager.Current.EnableDebugTools && SurroundSoundLabConfigManager.Current.ShowRainEmitterDebugVisuals)
+            {
+                rainEmitterDebugRenderer = new RainEmitterDebugRenderer(api, rainEmitterSystem);
+                api.Event.RegisterRenderer(rainEmitterDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-raindebug");
+            }
+        }
         if (SurroundSoundLabConfigManager.Current.EnableDebugTools)
         {
             testService = new ChannelTestService(api);
-            debugDialog = new SurroundDebugDialog(api, testService, leafRustleEmitterSystem);
+            debugDialog = new SurroundDebugDialog(api, testService, leafRustleEmitterSystem, rainEmitterSystem);
             api.Gui.RegisterDialog(debugDialog);
             api.Input.RegisterHotKey("vintagestorysurroundsound.toggledebug", "Surround Sound: Toggle Debug Panel", GlKeys.F9, HotkeyType.GUIOrOtherControls);
             api.Input.SetHotKeyHandler("vintagestorysurroundsound.toggledebug", OnToggleDebugPanel);
@@ -87,8 +98,19 @@ public class SurroundSoundLabModSystem : ModSystem
             leafRustleDebugRenderer.Dispose();
             leafRustleDebugRenderer = null;
         }
+        if (rainEmitterDebugRenderer != null)
+        {
+            if (clientApi != null)
+            {
+                clientApi.Event.UnregisterRenderer(rainEmitterDebugRenderer, EnumRenderStage.Opaque);
+            }
+
+            rainEmitterDebugRenderer.Dispose();
+            rainEmitterDebugRenderer = null;
+        }
 
         leafRustleEmitterSystem?.Dispose();
+        rainEmitterSystem?.Dispose();
         testService?.Dispose();
         harmony?.UnpatchAll(harmony.Id);
         clientApi = null;

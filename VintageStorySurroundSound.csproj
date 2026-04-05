@@ -45,10 +45,35 @@
       <Pack>true</Pack>
       <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-canopy.wav</PackagePath>
     </Content>
+    <Content Include="Audio\Assets\rain-surround-new.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-new.wav</PackagePath>
+    </Content>
     <Content Include="Audio\Assets\rain-surround-quiet.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
       <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-quiet.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\rain-mono-1.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-1.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\rain-mono-2.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-2.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\rain-mono-3.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-3.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\rain-mono-4.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-4.wav</PackagePath>
     </Content>
     <Content Include="Audio\Assets\wind-surround-leafless2.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -8,6 +8,7 @@ internal sealed class SurroundDebugDialog : GuiDialog
 {
     private readonly ChannelTestService testService;
     private readonly LeafRustleEmitterSystem leafRustleEmitterSystem;
+    private readonly RainEmitterSystem rainEmitterSystem;
     private GuiElementDynamicText statusText;
     private GuiElementDynamicText summaryText;
     private AudioCapabilityReport latestReport;
@@ -18,10 +19,11 @@ internal sealed class SurroundDebugDialog : GuiDialog
     public override string ToggleKeyCombinationCode => null;
     public override double DrawOrder => 0.2;
 
-    public SurroundDebugDialog(ICoreClientAPI capi, ChannelTestService testService, LeafRustleEmitterSystem leafRustleEmitterSystem) : base(capi)
+    public SurroundDebugDialog(ICoreClientAPI capi, ChannelTestService testService, LeafRustleEmitterSystem leafRustleEmitterSystem, RainEmitterSystem rainEmitterSystem) : base(capi)
     {
         this.testService = testService;
         this.leafRustleEmitterSystem = leafRustleEmitterSystem;
+        this.rainEmitterSystem = rainEmitterSystem;
         latestReport = AudioCapabilityReportWriter.CaptureReport();
         testService.TestCompleted += OnTestCompleted;
         testService.LabProbeCompleted += OnLabProbeCompleted;
@@ -241,6 +243,13 @@ internal sealed class SurroundDebugDialog : GuiDialog
         sb.AppendLine($"Live sounds: total {liveCounts.TotalActive}, mono {liveCounts.MonoActive}, stereo {liveCounts.StereoActive}, multichannel {liveCounts.MultichannelActive}, direct {liveCounts.DirectActive}");
         int liveLeafEmitters = leafRustleEmitterSystem?.GetActiveLeafEmitterCount(capi.ElapsedMilliseconds) ?? 0;
         sb.AppendLine($"Live leaf emitters: {liveLeafEmitters}");
+        int liveRainEmitters = rainEmitterSystem?.GetActiveRainEmitterCount(capi.ElapsedMilliseconds) ?? 0;
+        sb.AppendLine($"Live rain emitters: {liveRainEmitters}/16");
+        if (rainEmitterSystem != null)
+        {
+            var rainQuadrants = rainEmitterSystem.GetActiveRainEmitterQuadrantCounts(capi.ElapsedMilliseconds);
+            sb.AppendLine($"Rain quadrants: FL {rainQuadrants.FrontLeft}, FR {rainQuadrants.FrontRight}, BL {rainQuadrants.BackLeft}, BR {rainQuadrants.BackRight}");
+        }
         if (leafRustleEmitterSystem != null)
         {
             float windExposure = leafRustleEmitterSystem.GetCurrentWindExposure();
