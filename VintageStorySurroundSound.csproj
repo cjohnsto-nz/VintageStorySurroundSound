@@ -50,15 +50,15 @@
       <Pack>true</Pack>
       <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-quiet.wav</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\wind-surround-leafless.wav">
+    <Content Include="Audio\Assets\wind-surround-leafless2.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\wind-surround-leafless.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\wind-surround-leafless2.wav</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\wind-surround-leafy.wav">
+    <Content Include="Audio\Assets\wind-surround-leafy2.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\wind-surround-leafy.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\wind-surround-leafy2.wav</PackagePath>
     </Content>
     <Content Include="Audio\Assets\rumble-low.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -69,6 +69,26 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
       <PackagePath>assets\vintagestorysurroundsound\sounds\weather\lightning-distant.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\leaves-mono-1.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\foliage\leaves-mono-1.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\leaves-mono-2.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\foliage\leaves-mono-2.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\leaves-mono-3.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\foliage\leaves-mono-3.wav</PackagePath>
+    </Content>
+    <Content Include="Audio\Assets\leaves-mono-4.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\foliage\leaves-mono-4.wav</PackagePath>
     </Content>
   </ItemGroup>
 

@@ -21,6 +21,7 @@ public sealed class SurroundSoundLabConfig
     public bool UpmixStereoToSurround { get; set; } = true;
     public float StereoUpmixGainDb { get; set; } = -6f;
     public bool ReplaceVanillaWeatherBeds { get; set; } = true;
+    public bool EnableExperimentalLeafRustleEmitters { get; set; } = true;
     public bool EnableSoundAudit { get; set; } = false;
 }
 

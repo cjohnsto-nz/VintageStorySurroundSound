@@ -10,6 +10,7 @@ public class SurroundSoundLabModSystem : ModSystem
     private Harmony harmony;
     private ChannelTestService testService;
     private SurroundDebugDialog debugDialog;
+    private LeafRustleEmitterSystem leafRustleEmitterSystem;
 
     public override void Start(ICoreAPI api)
     {
@@ -22,12 +23,17 @@ public class SurroundSoundLabModSystem : ModSystem
         base.StartClientSide(api);
         harmony = new Harmony("vintagestorysurroundsound.audioopenal");
         harmony.PatchAll();
+        CustomSoundRegistry.Register(api, Mod.Logger);
         if (SurroundSoundLabConfigManager.Current.ReplaceVanillaWeatherBeds)
         {
             WeatherBedOverrides.Apply(api, Mod.Logger);
         }
         RecreateGameAudioContext(api);
         testService = new ChannelTestService(api);
+        if (SurroundSoundLabConfigManager.Current.EnableExperimentalLeafRustleEmitters)
+        {
+            leafRustleEmitterSystem = new LeafRustleEmitterSystem(api);
+        }
         debugDialog = new SurroundDebugDialog(api, testService);
         api.Gui.RegisterDialog(debugDialog);
         api.Input.RegisterHotKey("vintagestorysurroundsound.toggledebug", "Surround Sound: Toggle Debug Panel", GlKeys.F9, HotkeyType.GUIOrOtherControls);
@@ -60,6 +66,7 @@ public class SurroundSoundLabModSystem : ModSystem
 
     public override void Dispose()
     {
+        leafRustleEmitterSystem?.Dispose();
         testService?.Dispose();
         harmony?.UnpatchAll(harmony.Id);
         base.Dispose();
