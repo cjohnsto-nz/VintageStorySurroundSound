@@ -241,6 +241,14 @@ internal sealed class SurroundDebugDialog : GuiDialog
         sb.AppendLine($"Live sounds: total {liveCounts.TotalActive}, mono {liveCounts.MonoActive}, stereo {liveCounts.StereoActive}, multichannel {liveCounts.MultichannelActive}, direct {liveCounts.DirectActive}");
         int liveLeafEmitters = leafRustleEmitterSystem?.GetActiveLeafEmitterCount(capi.ElapsedMilliseconds) ?? 0;
         sb.AppendLine($"Live leaf emitters: {liveLeafEmitters}");
+        if (leafRustleEmitterSystem != null)
+        {
+            float windExposure = leafRustleEmitterSystem.GetCurrentWindExposure();
+            float softProbability = leafRustleEmitterSystem.GetCurrentSoftSampleProbability();
+            float brightProbability = leafRustleEmitterSystem.GetCurrentBrightSampleProbability();
+            sb.AppendLine($"Leaf wind exposure: {windExposure:0.000}");
+            sb.AppendLine($"Leaf sample bias: soft {softProbability:P0}, bright {brightProbability:P0}");
+        }
 
         if (report.ContextAttributes != null)
         {

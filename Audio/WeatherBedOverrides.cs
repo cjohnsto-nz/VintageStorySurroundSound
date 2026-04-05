@@ -10,8 +10,8 @@ internal static class WeatherBedOverrides
     {
         (new AssetLocation("game:sounds/weather/tracks/rain-leafless.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/tracks/rain-surround-canopy.wav")),
         (new AssetLocation("game:sounds/weather/tracks/rain-leafy.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/tracks/rain-surround-quiet.wav")),
-        (new AssetLocation("game:sounds/weather/wind-leafless.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/wind-surround-leafless2.wav")),
-        (new AssetLocation("game:sounds/weather/wind-leafy.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/wind-surround-leafy2.wav")),
+        (new AssetLocation("game:sounds/weather/wind-leafless.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/wind-surround-leafy2.wav")),
+        (new AssetLocation("game:sounds/weather/wind-leafy.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/wind-surround-leafless2.wav")),
         (new AssetLocation("game:sounds/weather/lowgrumble.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/rumble-low.wav")),
         (new AssetLocation("game:sounds/weather/lightning-distant.ogg"), new AssetLocation("vintagestorysurroundsound:sounds/weather/lightning-distant.wav"))
     };
