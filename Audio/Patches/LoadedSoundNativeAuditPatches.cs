@@ -66,6 +66,13 @@ internal static class SoundAuditCollector
             return;
         }
 
+        bool enableDebugTracking = SurroundSoundLabConfigManager.Current.EnableDebugTools;
+        bool enableAudit = SurroundSoundLabConfigManager.Current.EnableSoundAudit;
+        if (!enableDebugTracking && !enableAudit)
+        {
+            return;
+        }
+
         try
         {
             SoundParams soundParams = SoundParamsRef(instance);
@@ -123,7 +130,7 @@ internal static class SoundAuditCollector
             (auditEvent.RoutingClassification, auditEvent.RoutingExplanation) =
                 ClassifyRouting(auditEvent.Channels, auditEvent.RelativePosition, auditEvent.HasNonZeroPosition, auditEvent.HasPosition, usesDirectChannels);
 
-            if (SurroundSoundLabConfigManager.Current.EnableSoundAudit)
+            if (enableAudit)
             {
                 SurroundSessionLogWriter.AppendSoundAuditEvent(auditEvent);
                 SoundAuditSummaryCollector.Record(auditEvent);

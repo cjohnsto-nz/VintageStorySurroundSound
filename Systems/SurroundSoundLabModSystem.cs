@@ -32,20 +32,23 @@ public class SurroundSoundLabModSystem : ModSystem
             WeatherBedOverrides.Apply(api, Mod.Logger);
         }
         RecreateGameAudioContext(api);
-        testService = new ChannelTestService(api);
         if (SurroundSoundLabConfigManager.Current.EnableExperimentalLeafRustleEmitters)
         {
             leafRustleEmitterSystem = new LeafRustleEmitterSystem(api);
-            if (SurroundSoundLabConfigManager.Current.ShowLeafRustleDebugVisuals)
+            if (SurroundSoundLabConfigManager.Current.EnableDebugTools && SurroundSoundLabConfigManager.Current.ShowLeafRustleDebugVisuals)
             {
                 leafRustleDebugRenderer = new LeafRustleDebugRenderer(api, leafRustleEmitterSystem);
                 api.Event.RegisterRenderer(leafRustleDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-leafdebug");
             }
         }
-        debugDialog = new SurroundDebugDialog(api, testService, leafRustleEmitterSystem);
-        api.Gui.RegisterDialog(debugDialog);
-        api.Input.RegisterHotKey("vintagestorysurroundsound.toggledebug", "Surround Sound: Toggle Debug Panel", GlKeys.F9, HotkeyType.GUIOrOtherControls);
-        api.Input.SetHotKeyHandler("vintagestorysurroundsound.toggledebug", OnToggleDebugPanel);
+        if (SurroundSoundLabConfigManager.Current.EnableDebugTools)
+        {
+            testService = new ChannelTestService(api);
+            debugDialog = new SurroundDebugDialog(api, testService, leafRustleEmitterSystem);
+            api.Gui.RegisterDialog(debugDialog);
+            api.Input.RegisterHotKey("vintagestorysurroundsound.toggledebug", "Surround Sound: Toggle Debug Panel", GlKeys.F9, HotkeyType.GUIOrOtherControls);
+            api.Input.SetHotKeyHandler("vintagestorysurroundsound.toggledebug", OnToggleDebugPanel);
+        }
     }
 
     private static void RecreateGameAudioContext(ICoreClientAPI api)

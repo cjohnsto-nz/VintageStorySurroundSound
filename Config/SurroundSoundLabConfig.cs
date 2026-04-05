@@ -16,6 +16,7 @@ public enum SurroundOutputMode
 
 public sealed class SurroundSoundLabConfig
 {
+    public bool EnableDebugTools { get; set; } = false;
     public SurroundOutputMode OutputMode { get; set; } = SurroundOutputMode.Auto;
     public float ListenerBackwardOffset { get; set; } = 0.5f;
     public bool UpmixStereoToSurround { get; set; } = true;
