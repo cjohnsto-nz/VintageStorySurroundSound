@@ -21,6 +21,10 @@ This mod exists to explore whether Vintage Story can be extended toward surround
 - The widened `GetSoundFormat()` patch alone does not make the game-owned path multichannel.
 - A Harmony patch now replaces `AudioOpenAl.initContext(...)` to request `5.1` output and report the actual accepted mode.
 - The `initContext(...)` patch must be followed by an immediate context recreation because the game creates audio before mods finish loading.
+- `surroundsoundlab.json` now supports user-selectable output modes with `Auto` as the default.
+- Sound audit events now record `LoadedSoundNative` source creation, playback start, and disposal into the session JSONL.
+- The mod can now write an aggregated per-session sound-audit summary JSON grouped by sound asset.
+- The `F9` panel now supports non-mono speaker masking for `FL`, `FR`, `FC`, `LFE`, `SL`, and `SR`.
 
 ## Checklist
 
@@ -48,6 +52,11 @@ This mod exists to explore whether Vintage Story can be extended toward surround
 - [x] Investigate whether the game-owned context itself is being created in stereo mode.
 - [x] Patch `AudioOpenAl.initContext(...)` so the game-owned context can request a multichannel output mode.
 - [x] Force the game-owned audio context to recreate after the patch installs.
+- [x] Add user-configurable output mode settings with `Auto` as the default.
+- [x] Add a first systematic sound-audit pipeline for live sound instances.
+- [x] Write the sound-audit strategy to file.
+- [x] Add an aggregated sound-audit summary report grouped by sound asset.
+- [x] Add debug-panel controls for masking individual speakers on non-mono buffers.
 - [ ] Query and record the actual output mode the game-owned context accepted.
 - [ ] Patch `LoadedSoundNative.createSoundSource()` so non-mono buffers can deliberately opt into direct-channel playback.
 - [ ] Re-test existing stereo content under a multichannel game-owned context.

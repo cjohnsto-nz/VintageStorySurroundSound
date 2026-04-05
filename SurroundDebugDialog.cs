@@ -42,12 +42,13 @@ internal sealed class SurroundDebugDialog : GuiDialog
 
         var composer = capi.Gui.CreateCompo("surroundsoundlab.debug", dialogBounds)
             .AddShadedDialogBG(bgBounds)
-            .AddDialogTitleBar("Surround Sound Lab", () => TryClose())
+            .AddDialogTitleBar("Surround Sound Debug", () => TryClose())
             .BeginChildElements(bgBounds)
             .AddDynamicText(BuildSummaryText(), CairoFont.WhiteSmallText(), textBounds, "summary")
             .AddSmallButton("Refresh Report", () => OnRefreshReport(), ElementStdBounds.MenuButton(5.2f, EnumDialogArea.LeftFixed).WithFixedWidth(180))
             .AddSmallButton("Write Report", () => OnWriteReport(), ElementStdBounds.MenuButton(5.2f).WithFixedWidth(180))
             .AddSmallButton("Probe Lab Context", () => OnProbeLabContext(), ElementStdBounds.MenuButton(5.2f, EnumDialogArea.RightFixed).WithFixedWidth(180))
+            .AddSmallButton("Write Audit Summary", () => OnWriteAuditSummary(), ElementStdBounds.MenuButton(5.7f, EnumDialogArea.LeftFixed).WithFixedWidth(180))
             .AddSmallButton("Use Game Context", () => SetContext(AudioTestContextType.GameContext), ElementStdBounds.MenuButton(6.2f, EnumDialogArea.LeftFixed).WithFixedWidth(180))
             .AddSmallButton("Use Lab Context", () => SetContext(AudioTestContextType.LabContext), ElementStdBounds.MenuButton(6.2f).WithFixedWidth(180))
             .AddSmallButton("Use Engine Patch", () => SetContext(AudioTestContextType.PatchedEnginePath), ElementStdBounds.MenuButton(6.2f, EnumDialogArea.RightFixed).WithFixedWidth(180))
@@ -66,7 +67,14 @@ internal sealed class SurroundDebugDialog : GuiDialog
             .AddSmallButton("Mark SL", () => MarkSpeaker("SL"), ElementStdBounds.MenuButton(11.2f).WithFixedWidth(110))
             .AddSmallButton("Mark SR", () => MarkSpeaker("SR"), ElementStdBounds.MenuButton(11.2f, EnumDialogArea.RightFixed).WithFixedWidth(110))
             .AddSmallButton("No Output", () => MarkSpeaker("NoOutput"), ElementStdBounds.MenuButton(12.2f).WithFixedWidth(140))
-            .AddDynamicText("5.1 expected order: FL, FR, FC, LFE, SL, SR", CairoFont.WhiteDetailText(), ElementBounds.Fixed(0, 930, 760, 30), "status")
+            .AddSmallButton("Toggle Mute FL", () => ToggleMutedSpeaker(SurroundSpeaker.FL), ElementStdBounds.MenuButton(13.2f, EnumDialogArea.LeftFixed).WithFixedWidth(150))
+            .AddSmallButton("Toggle Mute FR", () => ToggleMutedSpeaker(SurroundSpeaker.FR), ElementStdBounds.MenuButton(13.2f).WithFixedWidth(150))
+            .AddSmallButton("Toggle Mute FC", () => ToggleMutedSpeaker(SurroundSpeaker.FC), ElementStdBounds.MenuButton(13.2f, EnumDialogArea.RightFixed).WithFixedWidth(150))
+            .AddSmallButton("Toggle Mute LFE", () => ToggleMutedSpeaker(SurroundSpeaker.LFE), ElementStdBounds.MenuButton(14.2f, EnumDialogArea.LeftFixed).WithFixedWidth(150))
+            .AddSmallButton("Toggle Mute SL", () => ToggleMutedSpeaker(SurroundSpeaker.SL), ElementStdBounds.MenuButton(14.2f).WithFixedWidth(150))
+            .AddSmallButton("Toggle Mute SR", () => ToggleMutedSpeaker(SurroundSpeaker.SR), ElementStdBounds.MenuButton(14.2f, EnumDialogArea.RightFixed).WithFixedWidth(150))
+            .AddSmallButton("Clear Mutes", () => ClearMutedSpeakers(), ElementStdBounds.MenuButton(15.2f).WithFixedWidth(150))
+            .AddDynamicText("5.1 expected order: FL, FR, FC, LFE, SL, SR", CairoFont.WhiteDetailText(), ElementBounds.Fixed(0, 1160, 760, 30), "status")
             .EndChildElements()
             .Compose();
 
@@ -90,7 +98,6 @@ internal sealed class SurroundDebugDialog : GuiDialog
         SurroundSessionLogWriter.AppendProbeReport(latestReport, "game-context");
         RefreshSummaryText();
         statusText?.SetNewText($"Wrote report: {path}");
-        capi.Logger.Notification($"[SurroundSoundLab] Audio capability report written to {path}");
         return true;
     }
 
@@ -98,6 +105,14 @@ internal sealed class SurroundDebugDialog : GuiDialog
     {
         testService.QueueLabContextProbe(out var message);
         statusText?.SetNewText(message);
+        return true;
+    }
+
+    private bool OnWriteAuditSummary()
+    {
+        string path = testService.WriteSoundAuditSummary();
+        RefreshSummaryText();
+        statusText?.SetNewText($"Wrote audit summary: {path}");
         return true;
     }
 
@@ -114,12 +129,10 @@ internal sealed class SurroundDebugDialog : GuiDialog
         if (testService.TryPlaySingleChannelTone(selectedContext, formatKey, channelIndex, out var message))
         {
             statusText?.SetNewText(message);
-            capi.Logger.Notification($"[SurroundSoundLab] {message}");
         }
         else
         {
             statusText?.SetNewText(message);
-            capi.Logger.Warning($"[SurroundSoundLab] {message}");
         }
 
         return true;
@@ -133,6 +146,22 @@ internal sealed class SurroundDebugDialog : GuiDialog
             RefreshSummaryText();
         }
 
+        statusText?.SetNewText(message);
+        return true;
+    }
+
+    private bool ToggleMutedSpeaker(SurroundSpeaker speaker)
+    {
+        testService.ToggleMutedSpeaker(speaker, out var message);
+        RefreshSummaryText();
+        statusText?.SetNewText(message);
+        return true;
+    }
+
+    private bool ClearMutedSpeakers()
+    {
+        testService.ClearMutedSpeakers(out var message);
+        RefreshSummaryText();
         statusText?.SetNewText(message);
         return true;
     }
@@ -170,8 +199,12 @@ internal sealed class SurroundDebugDialog : GuiDialog
         sb.AppendLine($"Version: {report.OpenAlVersion ?? "unknown"}");
         sb.AppendLine($"Playback device: {report.PlaybackDevice ?? "unknown"}");
         sb.AppendLine($"Default device: {report.DefaultPlaybackDevice ?? "unknown"}");
+        sb.AppendLine($"Config: mode {SurroundSoundLabConfigManager.Current.OutputMode}, sound audit {(SurroundSoundLabConfigManager.Current.EnableSoundAudit ? "enabled" : "disabled")}");
+        sb.AppendLine($"Stereo upmix: {(SurroundSoundLabConfigManager.Current.UpmixStereoToSurround ? "enabled" : "disabled")}");
         sb.AppendLine($"Output mode: requested {report.RequestedOutputMode ?? "unknown"}, actual {report.ActualOutputMode ?? "unknown"}");
         sb.AppendLine($"Session log: {SurroundSessionLogWriter.SessionFilePath ?? "not initialized"}");
+        sb.AppendLine($"Last audit summary: {SoundAuditSummaryCollector.LastSummaryFilePath ?? "not written yet"}");
+        sb.AppendLine($"Muted non-mono speakers: {testService.GetMutedSpeakerSummary()}");
 
         if (report.ContextAttributes != null)
         {
@@ -205,6 +238,7 @@ internal sealed class SurroundDebugDialog : GuiDialog
 
         sb.AppendLine();
         sb.AppendLine("Channel 4 uses a low-frequency LFE test tone.");
+        sb.AppendLine("Mute buttons only affect newly uploaded non-mono buffers; mono positional sounds are unaffected.");
         sb.AppendLine("Use F9 to reopen this panel.");
         return sb.ToString();
     }

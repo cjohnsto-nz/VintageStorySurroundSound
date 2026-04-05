@@ -13,11 +13,15 @@ internal static class AudioOpenAlInitContextPatch
 {
     private const int AlcHrtfSoft = 0x1992;
     private const int AlcOutputModeSoft = 0x19AC;
-    private const int HrtfEnabled = 0x1501;
-    private const int HrtfDisabled = 0x19AE;
     private const int AlcFrequency = 0x1007;
+    private const int AlcStereoBasicSoft = 0x19AE;
+    private const int AlcStereoSoft = 0x1501;
+    private const int AlcStereoHrtfSoft = 0x19B2;
+    private const int AlcAnySoft = 0x19AD;
+    private const int AlcQuadSoft = 0x1503;
     private const int Alc5Point1Soft = 0x1504;
-    private const string PreferredOutputModeName = "5.1";
+    private const int Alc6Point1Soft = 0x1505;
+    private const int Alc7Point1Soft = 0x1506;
 
     private static readonly AccessTools.FieldRef<AudioOpenAl, ALContext> ContextRef =
         AccessTools.FieldRefAccess<AudioOpenAl, ALContext>("Context");
@@ -53,12 +57,12 @@ internal static class AudioOpenAlInitContextPatch
 
             bool allowHrtfSetting = ClientSettings.AllowSettingHRTFAudio;
             bool outputModeExtension = device != ALDevice.Null && ALC.IsExtensionPresent(device, "ALC_SOFT_output_mode");
-            bool surroundRequested = outputModeExtension;
-            bool useHrtf = allowHrtfSetting && ClientSettings.UseHRTFAudio && !surroundRequested;
+            SurroundOutputMode requestedMode = SurroundSoundLabConfigManager.Current.OutputMode;
+            bool useHrtf = ShouldUseHrtf(allowHrtfSetting, requestedMode);
             AudioOpenAl.UseHrtf = useHrtf;
 
-            int[] attributes = BuildAttributeList(allowHrtfSetting, useHrtf, outputModeExtension, surroundRequested);
-            LastRequestedOutputMode = surroundRequested ? PreferredOutputModeName : (useHrtf ? "Stereo (HRTF)" : "Stereo (Basic)");
+            int[] attributes = BuildAttributeList(allowHrtfSetting, useHrtf, outputModeExtension, requestedMode);
+            LastRequestedOutputMode = DescribeRequestedMode(requestedMode, outputModeExtension, useHrtf);
 
             ALContext context = ALC.CreateContext(device, attributes);
             ContextRef(__instance) = context;
@@ -73,15 +77,6 @@ internal static class AudioOpenAlInitContextPatch
                 contextAttributes.MonoSources,
                 contextAttributes.StereoSources
             );
-            logger.Notification(
-                "OpenAL Output Mode Requested/Actual: {0}/{1}",
-                LastRequestedOutputMode,
-                LastActualOutputMode
-            );
-            if (surroundRequested && ClientSettings.UseHRTFAudio)
-            {
-                logger.Notification("OpenAL HRTF disabled for surround output request.");
-            }
 
             AudioOpenAl.HasEffectsExtension = ALC.EFX.IsExtensionPresent(device);
             if (!AudioOpenAl.HasEffectsExtension)
@@ -98,37 +93,82 @@ internal static class AudioOpenAlInitContextPatch
         return false;
     }
 
-    private static int[] BuildAttributeList(bool allowHrtfSetting, bool useHrtf, bool outputModeExtension, bool surroundRequested)
+    private static int[] BuildAttributeList(bool allowHrtfSetting, bool useHrtf, bool outputModeExtension, SurroundOutputMode requestedMode)
     {
-        if (surroundRequested)
+        if (!allowHrtfSetting && requestedMode == SurroundOutputMode.StereoHrtf)
         {
-            return new[]
-            {
-                AlcHrtfSoft, 0,
-                AlcOutputModeSoft, Alc5Point1Soft,
-                0
-            };
+            requestedMode = SurroundOutputMode.Auto;
         }
 
-        if (!allowHrtfSetting)
+        if (!outputModeExtension)
         {
-            return new[] { 0 };
+            if (!allowHrtfSetting)
+            {
+                return new[] { 0 };
+            }
+
+            if (!useHrtf)
+            {
+                return new[] { AlcHrtfSoft, 0, 0 };
+            }
+
+            return ClientSettings.Force48kHzHRTFAudio
+                ? new[] { AlcHrtfSoft, 1, AlcFrequency, 48000, 0 }
+                : new[] { AlcHrtfSoft, 1, 0 };
         }
+
+        int? outputModeValue = requestedMode switch
+        {
+            SurroundOutputMode.Auto => AlcAnySoft,
+            SurroundOutputMode.StereoBasic => AlcStereoBasicSoft,
+            SurroundOutputMode.Stereo => AlcStereoSoft,
+            SurroundOutputMode.StereoHrtf => AlcStereoHrtfSoft,
+            SurroundOutputMode.Quad => AlcQuadSoft,
+            SurroundOutputMode.Surround5Point1 => Alc5Point1Soft,
+            SurroundOutputMode.Surround6Point1 => Alc6Point1Soft,
+            SurroundOutputMode.Surround7Point1 => Alc7Point1Soft,
+            _ => AlcAnySoft
+        };
 
         if (!useHrtf)
         {
-            return outputModeExtension
-                ? new[] { AlcHrtfSoft, 0, AlcOutputModeSoft, HrtfDisabled, 0 }
-                : new[] { AlcHrtfSoft, 0, 0 };
+            return new[] { AlcHrtfSoft, 0, AlcOutputModeSoft, outputModeValue.Value, 0 };
         }
 
         return ClientSettings.Force48kHzHRTFAudio
-            ? (outputModeExtension
-                ? new[] { AlcHrtfSoft, 1, AlcOutputModeSoft, HrtfEnabled, AlcFrequency, 48000, 0 }
-                : new[] { AlcHrtfSoft, 1, AlcFrequency, 48000, 0 })
-            : (outputModeExtension
-                ? new[] { AlcHrtfSoft, 1, AlcOutputModeSoft, HrtfEnabled, 0 }
-                : new[] { AlcHrtfSoft, 1, 0 });
+            ? new[] { AlcHrtfSoft, 1, AlcOutputModeSoft, outputModeValue.Value, AlcFrequency, 48000, 0 }
+            : new[] { AlcHrtfSoft, 1, AlcOutputModeSoft, outputModeValue.Value, 0 };
+    }
+
+    private static bool ShouldUseHrtf(bool allowHrtfSetting, SurroundOutputMode requestedMode)
+    {
+        if (!allowHrtfSetting)
+        {
+            return false;
+        }
+
+        return requestedMode == SurroundOutputMode.StereoHrtf;
+    }
+
+    private static string DescribeRequestedMode(SurroundOutputMode requestedMode, bool outputModeExtension, bool useHrtf)
+    {
+        if (!outputModeExtension)
+        {
+            return useHrtf ? "Stereo HRTF (fallback)" : "Stereo Basic (fallback)";
+        }
+
+        return requestedMode switch
+        {
+            SurroundOutputMode.Auto => "Auto",
+            SurroundOutputMode.StereoBasic => "Stereo Basic",
+            SurroundOutputMode.Stereo => "Stereo",
+            SurroundOutputMode.StereoHrtf => "Stereo HRTF",
+            SurroundOutputMode.Quad => "Quad",
+            SurroundOutputMode.Surround5Point1 => "5.1",
+            SurroundOutputMode.Surround6Point1 => "6.1",
+            SurroundOutputMode.Surround7Point1 => "7.1",
+            _ => requestedMode.ToString()
+        };
     }
 }
 

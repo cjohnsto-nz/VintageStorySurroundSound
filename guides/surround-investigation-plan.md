@@ -38,6 +38,14 @@ The first implementation of that context patch is now in the mod and awaiting va
 - Preserve current spatial behavior for mono sources.
 - Re-test how existing stereo assets behave under multichannel output.
 
+### Phase 5: Audit the live soundscape
+
+- Record every created/started/disposed `LoadedSoundNative` instance.
+- Classify sources as mono positional, stereo bed, direct-channel bed, or suspicious mismatch.
+- Use the audit data to decide which sound families need follow-up patches versus leaving them to OpenAL spatialization.
+- Write an aggregated per-session summary JSON so we can review sessions without parsing raw JSONL.
+- Keep non-mono channel-mask controls in the debug panel to isolate front-bed stereo behavior during playtests.
+
 ## Tooling
 
 - `F9` opens the debug panel.
@@ -46,3 +54,4 @@ The first implementation of that context patch is now in the mod and awaiting va
 - Structured session logs are written as JSONL in the same folder.
 - Reports now explicitly distinguish between "no current context" and "context available".
 - Detailed implementation notes now live in `engine-multichannel-investigation.md`.
+- Sound-audit strategy now lives in `sound-audit-strategy.md`.

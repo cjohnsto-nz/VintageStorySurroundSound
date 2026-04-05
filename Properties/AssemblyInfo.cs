@@ -1,11 +1,11 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("Surround Sound Lab")]
-[assembly: AssemblyDescription("Experimental surround-audio capability probe for Vintage Story.")]
+[assembly: AssemblyTitle("Surround Sound")]
+[assembly: AssemblyDescription("Configurable surround-sound output for Vintage Story, with optional debug tooling.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("chrisunfocused")]
-[assembly: AssemblyProduct("Surround Sound Lab")]
+[assembly: AssemblyProduct("Surround Sound")]
 [assembly: AssemblyCopyright("Copyright 2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

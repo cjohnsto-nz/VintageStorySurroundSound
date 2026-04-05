@@ -18,6 +18,7 @@ internal static class SurroundSessionLogWriter
             string logDir = AudioCapabilityReportWriter.GetLogDir();
             Directory.CreateDirectory(logDir);
             sessionFilePath = Path.Combine(logDir, $"session-{DateTime.UtcNow:yyyyMMdd-HHmmss}.jsonl");
+            SoundAuditSummaryCollector.Reset(sessionFilePath);
             AppendEvent("session-started", new
             {
                 timestampUtc = DateTime.UtcNow,
@@ -54,6 +55,11 @@ internal static class SurroundSessionLogWriter
     public static void AppendLabProbe(LabContextProbeResult result)
     {
         AppendEvent("lab-context-probe", result);
+    }
+
+    public static void AppendSoundAuditEvent(SoundAuditEvent result)
+    {
+        AppendEvent("sound-audit", result);
     }
 
     private static void AppendEvent(string eventType, object payload)

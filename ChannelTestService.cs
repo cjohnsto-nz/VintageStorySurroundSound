@@ -88,6 +88,34 @@ internal sealed class ChannelTestService : IDisposable
         return true;
     }
 
+    public bool ToggleMutedSpeaker(SurroundSpeaker speaker, out string message)
+    {
+        bool nowMuted = NonMonoChannelMaskController.ToggleSpeaker(speaker);
+        TryRefreshLoadedSounds();
+        message = nowMuted
+            ? $"Muted {speaker} for non-mono buffers. Existing loaded sounds were refreshed."
+            : $"Unmuted {speaker} for non-mono buffers. Existing loaded sounds were refreshed.";
+        return true;
+    }
+
+    public bool ClearMutedSpeakers(out string message)
+    {
+        NonMonoChannelMaskController.Clear();
+        TryRefreshLoadedSounds();
+        message = "Cleared non-mono channel mutes and refreshed loaded sounds.";
+        return true;
+    }
+
+    public string GetMutedSpeakerSummary()
+    {
+        return NonMonoChannelMaskController.DescribeMutedSpeakers();
+    }
+
+    public string WriteSoundAuditSummary()
+    {
+        return SoundAuditSummaryCollector.WriteCurrentSummary();
+    }
+
     private bool TryPlayUsingGameContext(string formatKey, int activeChannelIndex, out string message)
     {
         if (!TryResolveFormat(formatKey, out var formatInfo, out message))
@@ -601,6 +629,17 @@ internal sealed class ChannelTestService : IDisposable
         try
         {
             ALC.MakeContextCurrent(previousContext);
+        }
+        catch
+        {
+        }
+    }
+
+    private static void TryRefreshLoadedSounds()
+    {
+        try
+        {
+            LoadedSoundNative.ChangeOutputDevice(() => { });
         }
         catch
         {

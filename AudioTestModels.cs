@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using Vintagestory.API.Client;
+using Vintagestory.API.Common;
 
 namespace SurroundSoundLab;
 
@@ -50,4 +52,53 @@ internal sealed class LabFormatProbeResult
     public string AlError { get; set; }
     public string AlcError { get; set; }
     public string ErrorMessage { get; set; }
+}
+
+internal enum SoundAuditEventType
+{
+    SourceCreated,
+    PlaybackStarted,
+    Disposed
+}
+
+internal sealed class SoundAuditEvent
+{
+    public long InstanceId { get; set; }
+    public DateTime TimestampUtc { get; set; }
+    public SoundAuditEventType EventType { get; set; }
+    public string Location { get; set; }
+    public EnumSoundType SoundType { get; set; }
+    public int Channels { get; set; }
+    public int BitsPerSample { get; set; }
+    public int SampleRate { get; set; }
+    public int SourceId { get; set; }
+    public int BufferId { get; set; }
+    public bool RelativePosition { get; set; }
+    public bool HasPosition { get; set; }
+    public bool HasNonZeroPosition { get; set; }
+    public float? PositionX { get; set; }
+    public float? PositionY { get; set; }
+    public float? PositionZ { get; set; }
+    public float? ListenerPositionX { get; set; }
+    public float? ListenerPositionY { get; set; }
+    public float? ListenerPositionZ { get; set; }
+    public float? ListenerForwardX { get; set; }
+    public float? ListenerForwardY { get; set; }
+    public float? ListenerForwardZ { get; set; }
+    public float? RelativeOffsetX { get; set; }
+    public float? RelativeOffsetY { get; set; }
+    public float? RelativeOffsetZ { get; set; }
+    public float? Distance { get; set; }
+    public float? AzimuthDegrees { get; set; }
+    public string BearingBucket { get; set; }
+    public bool ShouldLoop { get; set; }
+    public bool DisposeOnFinish { get; set; }
+    public float Range { get; set; }
+    public float ReferenceDistance { get; set; }
+    public string RequestedOutputMode { get; set; }
+    public string ActualOutputMode { get; set; }
+    public int? DirectChannelsValue { get; set; }
+    public bool UsesDirectChannels { get; set; }
+    public string RoutingClassification { get; set; }
+    public string RoutingExplanation { get; set; }
 }
