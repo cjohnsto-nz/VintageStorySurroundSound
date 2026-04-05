@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using HarmonyLib;
@@ -43,6 +44,8 @@ internal static class SoundAuditCollector
     private const int DirectChannelsSoft = 0x1033;
     private static readonly ConditionalWeakTable<LoadedSoundNative, TrackedSoundInstance> InstanceIds = new();
     private static long nextInstanceId;
+    private static readonly object ActiveInstancesLock = new();
+    private static readonly Dictionary<long, ActiveSoundInstance> ActiveInstances = new();
 
     private static readonly AccessTools.FieldRef<LoadedSoundNative, SoundParams> SoundParamsRef =
         AccessTools.FieldRefAccess<LoadedSoundNative, SoundParams>("soundParams");
@@ -58,7 +61,14 @@ internal static class SoundAuditCollector
 
     public static void Capture(LoadedSoundNative instance, SoundAuditEventType eventType)
     {
-        if (!SurroundSoundLabConfigManager.Current.EnableSoundAudit || instance == null)
+        if (instance == null)
+        {
+            return;
+        }
+
+        bool enableDebugTracking = SurroundSoundLabConfigManager.Current.EnableDebugTools;
+        bool enableAudit = SurroundSoundLabConfigManager.Current.EnableSoundAudit;
+        if (!enableDebugTracking && !enableAudit)
         {
             return;
         }
@@ -102,6 +112,10 @@ internal static class SoundAuditCollector
                 ListenerForwardZ = listener.HasForward ? listener.Forward.Z : null,
                 ShouldLoop = soundParams?.ShouldLoop ?? false,
                 DisposeOnFinish = soundParams?.DisposeOnFinish ?? false,
+                Volume = soundParams?.Volume ?? 0f,
+                Pitch = soundParams?.Pitch ?? 0f,
+                LowPassFilter = soundParams?.LowPassFilter ?? 0f,
+                ReverbDecayTime = soundParams?.ReverbDecayTime ?? 0f,
                 Range = soundParams?.Range ?? 0f,
                 ReferenceDistance = soundParams?.ReferenceDistance ?? 0f,
                 RequestedOutputMode = AudioOpenAlInitContextPatch.LastRequestedOutputMode,
@@ -111,15 +125,53 @@ internal static class SoundAuditCollector
             };
 
             ApplySpatialSnapshot(auditEvent, soundParams, listener);
+            UpdateActiveInstanceState(auditEvent);
 
             (auditEvent.RoutingClassification, auditEvent.RoutingExplanation) =
                 ClassifyRouting(auditEvent.Channels, auditEvent.RelativePosition, auditEvent.HasNonZeroPosition, auditEvent.HasPosition, usesDirectChannels);
 
-            SurroundSessionLogWriter.AppendSoundAuditEvent(auditEvent);
-            SoundAuditSummaryCollector.Record(auditEvent);
+            if (enableAudit)
+            {
+                SurroundSessionLogWriter.AppendSoundAuditEvent(auditEvent);
+                SoundAuditSummaryCollector.Record(auditEvent);
+            }
         }
         catch
         {
+        }
+    }
+
+    public static SoundDebugCounts GetLiveCounts()
+    {
+        lock (ActiveInstancesLock)
+        {
+            int mono = 0;
+            int stereo = 0;
+            int multichannel = 0;
+            int direct = 0;
+
+            foreach (ActiveSoundInstance instance in ActiveInstances.Values)
+            {
+                if (instance.Channels <= 1)
+                {
+                    mono++;
+                }
+                else if (instance.Channels == 2)
+                {
+                    stereo++;
+                }
+                else
+                {
+                    multichannel++;
+                }
+
+                if (instance.UsesDirectChannels)
+                {
+                    direct++;
+                }
+            }
+
+            return new SoundDebugCounts(ActiveInstances.Count, mono, stereo, multichannel, direct);
         }
     }
 
@@ -340,6 +392,12 @@ internal static class SoundAuditCollector
         public long Id { get; init; }
     }
 
+    private sealed class ActiveSoundInstance
+    {
+        public int Channels { get; init; }
+        public bool UsesDirectChannels { get; init; }
+    }
+
     private struct ListenerSnapshot
     {
         public bool HasPosition { get; init; }
@@ -347,4 +405,24 @@ internal static class SoundAuditCollector
         public Vector3 Position { get; init; }
         public Vector3 Forward { get; init; }
     }
+
+    private static void UpdateActiveInstanceState(SoundAuditEvent auditEvent)
+    {
+        lock (ActiveInstancesLock)
+        {
+            if (auditEvent.EventType == SoundAuditEventType.Disposed)
+            {
+                ActiveInstances.Remove(auditEvent.InstanceId);
+                return;
+            }
+
+            ActiveInstances[auditEvent.InstanceId] = new ActiveSoundInstance
+            {
+                Channels = auditEvent.Channels,
+                UsesDirectChannels = auditEvent.UsesDirectChannels
+            };
+        }
+    }
 }
+
+internal readonly record struct SoundDebugCounts(int TotalActive, int MonoActive, int StereoActive, int MultichannelActive, int DirectActive);

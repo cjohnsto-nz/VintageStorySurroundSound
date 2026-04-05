@@ -1,50 +1,73 @@
-# Surround Sound Lab Plan
+# Surround Sound Plan
 
 ## Summary
 
 - OpenAL Soft on this machine exposes multichannel-related extensions and format enums.
-- Vintage Story's game-owned context is explicitly created in a stereo output mode.
-- The widened `GetSoundFormat()` patch was necessary, but not sufficient.
-- Current testing has shown that the patched engine path still only produces audible output on channels 1 and 2.
-- The lab-owned context has now proven `5.1` playback on this machine for `FL`, `FR`, `FC`, `SL`, and `SR`.
-- Channel 4 has now been confirmed as `LFE`.
-
-The active strategy is now to patch the game-owned context itself, not just the format mapper.
-The first implementation of that context patch is now in the mod and awaiting validation.
+- Vintage Story's game-owned context can now be recreated into a multichannel mode and is working in real `5.1` on this machine.
+- Stereo output enablement is no longer the main problem.
+- The next major phase is cataloging and then selectively worldizing stereo effects that currently play as listener-relative stereo beds.
 
 ## Active Implementation Steps
 
-### Phase 1: Keep the lab proof available, but stop relying on it for the main path
+### Phase 1: Keep surround output stable and package-friendly
 
 - Keep both `Game Context` and `Lab Context` test modes.
 - Keep the low-frequency LFE tone for `5.1` channel 4.
-- Keep writing every test run and speaker observation to the session JSONL log.
-- Treat the lab path as a reference tool, not the primary implementation target, until the context-restoration bug is fully solved.
+- Keep diagnostics opt-in and user-facing logging quiet by default.
+- Keep user-selectable output modes and stereo upmix working.
 
-### Phase 2: Patch the game-owned context
+### Phase 2: Build a stereo-effect catalog
 
-- Patch `AudioOpenAl.initContext(...)` so the mod can request a multichannel output mode.
-- Disable HRTF automatically when a surround output mode is requested.
-- Query and report the actual output mode the device accepted after context creation.
+- Use sound-audit summaries to identify every observed stereo asset.
+- Trace each stereo asset back to the decompiled game logic or asset JSON that drives it.
+- Record trigger conditions, volume behavior, range, loop/dispose behavior, and sound category.
+- Split assets into buckets:
+  - UI / non-world
+  - player-state / headspace
+  - weather beds
+  - status effects
+  - held / vehicle loops
 
-### Phase 3: Keep the widened format mapping
+### Phase 3: Define target behavior per stereo asset family
 
-- Keep the `AudioOpenAl.GetSoundFormat(...)` Harmony patch active for `quad`, `5.1`, `6.1`, and `7.1`.
-- Re-test the engine-owned path only after the context-output patch is in place.
+- Do not convert everything to mono world emitters.
+- For each family, decide whether the target should be:
+  - listener-relative
+  - a deliberate multichannel bed
+  - mono in-world emitters
+- Use `stereo-effect-catalog.md` as the decision log.
 
-### Phase 4: Patch non-mono source behavior
+### Phase 4: Prototype worldized weather first
 
-- Patch `LoadedSoundNative.createSoundSource()` so `sample.Channels > 1` can opt into `AL_DIRECT_CHANNELS_SOFT`.
-- Preserve current spatial behavior for mono sources.
-- Re-test how existing stereo assets behave under multichannel output.
+- Start with weather beds, especially leafy vs leafless wind/rain.
+- Reuse existing engine signals where possible:
+  - weather intensity
+  - weather event type
+  - nearby leaf density
+  - wind-affectedness
+- Favor chance-based mono emitters over one-loop-per-block designs.
+- Use the new `weather-audio-plan.md` as the target architecture for rain first and then hail, wind, and foliage.
+- Treat rain as a hybrid system:
+  - far-field surround bed
+  - canopy / overhead layer
+  - pooled mono detail emitters
+  - shelter-aware filtering and blending
 
-### Phase 5: Audit the live soundscape
+### Phase 5: Implement one family at a time
 
-- Record every created/started/disposed `LoadedSoundNative` instance.
-- Classify sources as mono positional, stereo bed, direct-channel bed, or suspicious mismatch.
-- Use the audit data to decide which sound families need follow-up patches versus leaving them to OpenAL spatialization.
-- Write an aggregated per-session summary JSON so we can review sessions without parsing raw JSONL.
-- Keep non-mono channel-mask controls in the debug panel to isolate front-bed stereo behavior during playtests.
+- Make one replacement family at a time.
+- After each family:
+  - deploy
+  - playtest
+  - audit
+  - compare behavior against the previous bed
+
+### Phase 6: Keep tooling useful for the grind
+
+- Keep session JSONL logging opt-in.
+- Keep the aggregated sound-audit summary report.
+- Keep the channel-mask controls for isolating non-mono beds.
+- Keep adding catalog-friendly fields to the audit when needed.
 
 ## Tooling
 
@@ -52,6 +75,8 @@ The first implementation of that context patch is now in the mod and awaiting va
 - The panel supports both `Game Context` and `Lab Context` test modes.
 - Reports remain under `VintagestoryData/Logs/VintageStorySurroundSound`.
 - Structured session logs are written as JSONL in the same folder.
-- Reports now explicitly distinguish between "no current context" and "context available".
-- Detailed implementation notes now live in `engine-multichannel-investigation.md`.
+- Detailed implementation notes live in `engine-multichannel-investigation.md`.
 - Sound-audit strategy now lives in `sound-audit-strategy.md`.
+- Stereo conversion inventory now lives in `stereo-effect-catalog.md`.
+- Weather replacement architecture now lives in `weather-audio-plan.md`.
+- Candidate library research now lives in `weather-library-research.md`.

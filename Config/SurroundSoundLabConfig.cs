@@ -16,10 +16,16 @@ public enum SurroundOutputMode
 
 public sealed class SurroundSoundLabConfig
 {
+    public bool EnableDebugTools { get; set; } = false;
     public SurroundOutputMode OutputMode { get; set; } = SurroundOutputMode.Auto;
     public float ListenerBackwardOffset { get; set; } = 0.5f;
     public bool UpmixStereoToSurround { get; set; } = true;
     public float StereoUpmixGainDb { get; set; } = -6f;
+    public bool ReplaceVanillaWeatherBeds { get; set; } = true;
+    public bool EnableExperimentalLeafRustleEmitters { get; set; } = true;
+    public bool EnableExperimentalRainEmitters { get; set; } = true;
+    public bool ShowLeafRustleDebugVisuals { get; set; } = false;
+    public bool ShowRainEmitterDebugVisuals { get; set; } = false;
     public bool EnableSoundAudit { get; set; } = false;
 }
 

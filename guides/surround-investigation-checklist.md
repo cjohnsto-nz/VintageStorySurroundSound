@@ -1,4 +1,4 @@
-# Surround Sound Lab Checklist
+# Surround Sound Checklist
 
 This mod exists to explore whether Vintage Story can be extended toward surround output without guessing.
 
@@ -15,16 +15,16 @@ This mod exists to explore whether Vintage Story can be extended toward surround
 - The current decompiled `GetSoundFormat()` implementation supports only 1-channel and 2-channel audio until patched.
 - The decode path preserves multichannel PCM; it does not collapse OGG or WAV content to stereo.
 - The game is aware of OpenAL Soft concepts like HRTF and `AL_DIRECT_CHANNELS_SOFT`.
-- The game-owned OpenAL context is explicitly created in a stereo output mode.
-- The current game-owned context still behaves as stereo in practice: only channels 1 and 2 produce audible output.
-- The lab-owned context has produced expected `5.1` output for `FL`, `FR`, `FC`, `LFE`, `SL`, and `SR`.
-- The widened `GetSoundFormat()` patch alone does not make the game-owned path multichannel.
-- A Harmony patch now replaces `AudioOpenAl.initContext(...)` to request `5.1` output and report the actual accepted mode.
-- The `initContext(...)` patch must be followed by an immediate context recreation because the game creates audio before mods finish loading.
+- The game-owned OpenAL context now works in real multichannel on this machine.
 - `vintagestorysurroundsound.json` now supports user-selectable output modes with `Auto` as the default.
 - Sound audit events now record `LoadedSoundNative` source creation, playback start, and disposal into the session JSONL.
 - The mod can now write an aggregated per-session sound-audit summary JSON grouped by sound asset.
 - The `F9` panel now supports non-mono speaker masking for `FL`, `FR`, `FC`, `LFE`, `SL`, and `SR`.
+- Stereo weather, UI, underwater, and temporal-stability effects are now the main follow-up area.
+- `SystemPlayerSounds` owns the current fly-wind and underwater loops.
+- `SystemClientTickingBlocks` plus `SystemPlayerSounds` already provide a block-driven ambient model we can reuse for worldized emitters.
+- `SystemClientTickingBlocks` also computes `GlobalConstants.CurrentNearbyRelLeavesCountClient`, which is a likely future hook for leafy weather worldization.
+- The first catalog now lives in `stereo-effect-catalog.md`.
 
 ## Checklist
 
@@ -57,10 +57,25 @@ This mod exists to explore whether Vintage Story can be extended toward surround
 - [x] Write the sound-audit strategy to file.
 - [x] Add an aggregated sound-audit summary report grouped by sound asset.
 - [x] Add debug-panel controls for masking individual speakers on non-mono buffers.
-- [ ] Query and record the actual output mode the game-owned context accepted.
-- [ ] Patch `LoadedSoundNative.createSoundSource()` so non-mono buffers can deliberately opt into direct-channel playback.
-- [ ] Re-test existing stereo content under a multichannel game-owned context.
-- [ ] Re-test authored `5.1` content through the game-owned context after both engine patches are in place.
+- [x] Query and record the actual output mode the game-owned context accepted.
+- [x] Re-test existing stereo content under a multichannel game-owned context.
+- [x] Write a first-pass stereo effect catalog from audit data and decompiled logic.
+- [x] Extend the audit summary to include playback parameter rollups for cataloging work.
+- [x] Regenerate the audit summary with the newer volume/pitch/range rollups.
+- [ ] Find the exact weather audio driver for the listener-relative weather beds.
+- [ ] Find the exact temporal-stability sound driver.
+- [ ] Build a per-asset decision matrix:
+  - keep listener-relative
+  - keep as multichannel bed
+  - convert to mono in-world emitters
+- [x] Write a reusable weather-audio architecture that can start with rain and extend to hail, wind, and foliage.
+- [x] Research candidate sound libraries that fit the target runtime formats and licensing constraints.
+- [ ] Decide whether rain prototyping will use:
+  - licensed surround beds
+  - self-rendered beds
+  - or temporary placeholder assets
+- [ ] Prototype the first worldized weather family.
+- [ ] Validate the weather prototype with deploy + playtest before moving to the next family.
 
 ## Current Session Output
 

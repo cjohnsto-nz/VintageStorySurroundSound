@@ -7,18 +7,23 @@ namespace SurroundSoundLab;
 internal sealed class SurroundDebugDialog : GuiDialog
 {
     private readonly ChannelTestService testService;
+    private readonly LeafRustleEmitterSystem leafRustleEmitterSystem;
+    private readonly RainEmitterSystem rainEmitterSystem;
     private GuiElementDynamicText statusText;
     private GuiElementDynamicText summaryText;
     private AudioCapabilityReport latestReport;
     private AudioTestContextType selectedContext = AudioTestContextType.GameContext;
     private string pendingObservationTestId;
+    private long liveRefreshListenerId;
 
     public override string ToggleKeyCombinationCode => null;
     public override double DrawOrder => 0.2;
 
-    public SurroundDebugDialog(ICoreClientAPI capi, ChannelTestService testService) : base(capi)
+    public SurroundDebugDialog(ICoreClientAPI capi, ChannelTestService testService, LeafRustleEmitterSystem leafRustleEmitterSystem, RainEmitterSystem rainEmitterSystem) : base(capi)
     {
         this.testService = testService;
+        this.leafRustleEmitterSystem = leafRustleEmitterSystem;
+        this.rainEmitterSystem = rainEmitterSystem;
         latestReport = AudioCapabilityReportWriter.CaptureReport();
         testService.TestCompleted += OnTestCompleted;
         testService.LabProbeCompleted += OnLabProbeCompleted;
@@ -29,7 +34,14 @@ internal sealed class SurroundDebugDialog : GuiDialog
     {
         latestReport = AudioCapabilityReportWriter.CaptureReport();
         Compose();
+        RegisterLiveRefresh();
         base.OnGuiOpened();
+    }
+
+    public override void OnGuiClosed()
+    {
+        UnregisterLiveRefresh();
+        base.OnGuiClosed();
     }
 
     private void Compose()
@@ -38,7 +50,7 @@ internal sealed class SurroundDebugDialog : GuiDialog
 
         ElementBounds bgBounds = ElementStdBounds.DialogBackground().WithFixedPadding(GuiStyle.ElementToDialogPadding, GuiStyle.ElementToDialogPadding);
         ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog;
-        ElementBounds textBounds = ElementBounds.Fixed(0, 0, 760, 360);
+        ElementBounds textBounds = ElementBounds.Fixed(0, 0, 760, 330);
 
         var composer = capi.Gui.CreateCompo("vintagestorysurroundsound.debug", dialogBounds)
             .AddShadedDialogBG(bgBounds)
@@ -67,14 +79,7 @@ internal sealed class SurroundDebugDialog : GuiDialog
             .AddSmallButton("Mark SL", () => MarkSpeaker("SL"), ElementStdBounds.MenuButton(11.2f).WithFixedWidth(110))
             .AddSmallButton("Mark SR", () => MarkSpeaker("SR"), ElementStdBounds.MenuButton(11.2f, EnumDialogArea.RightFixed).WithFixedWidth(110))
             .AddSmallButton("No Output", () => MarkSpeaker("NoOutput"), ElementStdBounds.MenuButton(12.2f).WithFixedWidth(140))
-            .AddSmallButton("Toggle Mute FL", () => ToggleMutedSpeaker(SurroundSpeaker.FL), ElementStdBounds.MenuButton(13.2f, EnumDialogArea.LeftFixed).WithFixedWidth(150))
-            .AddSmallButton("Toggle Mute FR", () => ToggleMutedSpeaker(SurroundSpeaker.FR), ElementStdBounds.MenuButton(13.2f).WithFixedWidth(150))
-            .AddSmallButton("Toggle Mute FC", () => ToggleMutedSpeaker(SurroundSpeaker.FC), ElementStdBounds.MenuButton(13.2f, EnumDialogArea.RightFixed).WithFixedWidth(150))
-            .AddSmallButton("Toggle Mute LFE", () => ToggleMutedSpeaker(SurroundSpeaker.LFE), ElementStdBounds.MenuButton(14.2f, EnumDialogArea.LeftFixed).WithFixedWidth(150))
-            .AddSmallButton("Toggle Mute SL", () => ToggleMutedSpeaker(SurroundSpeaker.SL), ElementStdBounds.MenuButton(14.2f).WithFixedWidth(150))
-            .AddSmallButton("Toggle Mute SR", () => ToggleMutedSpeaker(SurroundSpeaker.SR), ElementStdBounds.MenuButton(14.2f, EnumDialogArea.RightFixed).WithFixedWidth(150))
-            .AddSmallButton("Clear Mutes", () => ClearMutedSpeakers(), ElementStdBounds.MenuButton(15.2f).WithFixedWidth(150))
-            .AddDynamicText("5.1 expected order: FL, FR, FC, LFE, SL, SR", CairoFont.WhiteDetailText(), ElementBounds.Fixed(0, 1160, 760, 30), "status")
+            .AddDynamicText("5.1 expected order: FL, FR, FC, LFE, SL, SR", CairoFont.WhiteDetailText(), ElementBounds.Fixed(0, 980, 760, 30), "status")
             .EndChildElements()
             .Compose();
 
@@ -187,6 +192,35 @@ internal sealed class SurroundDebugDialog : GuiDialog
         summaryText?.SetNewText(BuildSummaryText());
     }
 
+    private void RegisterLiveRefresh()
+    {
+        if (liveRefreshListenerId != 0)
+        {
+            return;
+        }
+
+        liveRefreshListenerId = capi.Event.RegisterGameTickListener(_ =>
+        {
+            if (!IsOpened())
+            {
+                return;
+            }
+
+            RefreshSummaryText();
+        }, 250);
+    }
+
+    private void UnregisterLiveRefresh()
+    {
+        if (liveRefreshListenerId == 0)
+        {
+            return;
+        }
+
+        capi.Event.UnregisterGameTickListener(liveRefreshListenerId);
+        liveRefreshListenerId = 0;
+    }
+
     private string BuildSummaryText()
     {
         var report = latestReport ?? AudioCapabilityReportWriter.CaptureReport();
@@ -205,7 +239,27 @@ internal sealed class SurroundDebugDialog : GuiDialog
         sb.AppendLine($"Output mode: requested {report.RequestedOutputMode ?? "unknown"}, actual {report.ActualOutputMode ?? "unknown"}");
         sb.AppendLine($"Session log: {SurroundSessionLogWriter.SessionFilePath ?? "not initialized"}");
         sb.AppendLine($"Last audit summary: {SoundAuditSummaryCollector.LastSummaryFilePath ?? "not written yet"}");
-        sb.AppendLine($"Muted non-mono speakers: {testService.GetMutedSpeakerSummary()}");
+        SoundDebugCounts liveCounts = SoundAuditCollector.GetLiveCounts();
+        sb.AppendLine($"Live sounds: total {liveCounts.TotalActive}, mono {liveCounts.MonoActive}, stereo {liveCounts.StereoActive}, multichannel {liveCounts.MultichannelActive}, direct {liveCounts.DirectActive}");
+        int liveLeafEmitters = leafRustleEmitterSystem?.GetActiveLeafEmitterCount(capi.ElapsedMilliseconds) ?? 0;
+        sb.AppendLine($"Live leaf emitters: {liveLeafEmitters}");
+        int liveLeafVoices = leafRustleEmitterSystem?.GetActiveLeafVoiceCount(capi.ElapsedMilliseconds) ?? 0;
+        sb.AppendLine($"Live leaf voices: {liveLeafVoices}/75");
+        int liveRainEmitters = rainEmitterSystem?.GetActiveRainEmitterCount(capi.ElapsedMilliseconds) ?? 0;
+        sb.AppendLine($"Live rain emitters: {liveRainEmitters}/16");
+        if (rainEmitterSystem != null)
+        {
+            var rainQuadrants = rainEmitterSystem.GetActiveRainEmitterQuadrantCounts(capi.ElapsedMilliseconds);
+            sb.AppendLine($"Rain quadrants: FL {rainQuadrants.FrontLeft}, FR {rainQuadrants.FrontRight}, BL {rainQuadrants.BackLeft}, BR {rainQuadrants.BackRight}");
+        }
+        if (leafRustleEmitterSystem != null)
+        {
+            float windExposure = leafRustleEmitterSystem.GetCurrentWindExposure();
+            float softProbability = leafRustleEmitterSystem.GetCurrentSoftSampleProbability();
+            float brightProbability = leafRustleEmitterSystem.GetCurrentBrightSampleProbability();
+            sb.AppendLine($"Leaf wind exposure: {windExposure:0.000}");
+            sb.AppendLine($"Leaf sample bias: soft {softProbability:P0}, bright {brightProbability:P0}");
+        }
 
         if (report.ContextAttributes != null)
         {
@@ -239,7 +293,6 @@ internal sealed class SurroundDebugDialog : GuiDialog
 
         sb.AppendLine();
         sb.AppendLine("Channel 4 uses a low-frequency LFE test tone.");
-        sb.AppendLine("Mute buttons only affect newly uploaded non-mono buffers; mono positional sounds are unaffected.");
         sb.AppendLine("Use F9 to reopen this panel.");
         return sb.ToString();
     }
@@ -266,5 +319,11 @@ internal sealed class SurroundDebugDialog : GuiDialog
         }
 
         return sb.ToString();
+    }
+
+    public override void Dispose()
+    {
+        UnregisterLiveRefresh();
+        base.Dispose();
     }
 }
