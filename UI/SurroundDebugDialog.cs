@@ -200,6 +200,7 @@ internal sealed class SurroundDebugDialog : GuiDialog
         sb.AppendLine($"Playback device: {report.PlaybackDevice ?? "unknown"}");
         sb.AppendLine($"Default device: {report.DefaultPlaybackDevice ?? "unknown"}");
         sb.AppendLine($"Config: mode {SurroundSoundLabConfigManager.Current.OutputMode}, sound audit {(SurroundSoundLabConfigManager.Current.EnableSoundAudit ? "enabled" : "disabled")}");
+        sb.AppendLine($"Listener backward offset: {SurroundSoundLabConfigManager.Current.ListenerBackwardOffset:0.###}");
         sb.AppendLine($"Stereo upmix: {(SurroundSoundLabConfigManager.Current.UpmixStereoToSurround ? $"enabled ({SurroundSoundLabConfigManager.Current.StereoUpmixGainDb:0.##} dB)" : "disabled")}");
         sb.AppendLine($"Output mode: requested {report.RequestedOutputMode ?? "unknown"}, actual {report.ActualOutputMode ?? "unknown"}");
         sb.AppendLine($"Session log: {SurroundSessionLogWriter.SessionFilePath ?? "not initialized"}");
