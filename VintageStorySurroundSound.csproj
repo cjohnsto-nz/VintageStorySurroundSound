@@ -95,6 +95,11 @@
       <Pack>true</Pack>
       <PackagePath>assets\vintagestorysurroundsound\sounds\weather\lightning-distant.ogg</PackagePath>
     </Content>
+    <Content Include="Audio\Assets\hail.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\hail.wav</PackagePath>
+    </Content>
     <Content Include="Audio\Assets\leaves-mono-1.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>

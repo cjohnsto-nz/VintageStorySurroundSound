@@ -438,16 +438,20 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
         }
 
         AssetLocation sound = ChooseRustleAlias(windExposure);
-        float volume = GameMath.Clamp(0.036f + (windExposure * 0.048f) + (leafFactor * 0.022f), 0.036f, 0.15f);
+        float baseVolume = GameMath.Clamp(0.036f + (windExposure * 0.048f) + (leafFactor * 0.022f), 0.036f, 0.15f);
+        float volumeMultiplier = GameMath.Max(0f, SurroundSoundLabConfigManager.Current.LeafRustleVolumeMultiplier);
+        float volume = GameMath.Clamp(baseVolume * volumeMultiplier, 0.036f, 0.24f);
         volume *= (1f - roomLoss);
         if (volume <= 0.003f)
         {
             return false;
         }
 
+        float pitchVariationMultiplier = GameMath.Max(0f, SurroundSoundLabConfigManager.Current.LeafRustlePitchVariationMultiplier);
+        float centeredRandom = ((float)random.NextDouble() * 2f) - 1f;
         float pitch = isReedLike
-            ? GameMath.Clamp((float)(0.5 + (random.NextDouble() * 0.34) + ((windExposure - 0.5f) * 0.05f)), 0.45f, 0.9f)
-            : GameMath.Clamp((float)(0.72 + (random.NextDouble() * 0.56) + ((windExposure - 0.5f) * 0.08f)), 0.68f, 1.32f);
+            ? GameMath.Clamp(0.67f + (centeredRandom * 0.17f * pitchVariationMultiplier) + ((windExposure - 0.5f) * 0.07f), 0.4f, 0.98f)
+            : GameMath.Clamp(1f + (centeredRandom * 0.28f * pitchVariationMultiplier) + ((windExposure - 0.5f) * 0.12f), 0.6f, 1.42f);
         pitch = GameMath.Max(0f, pitch - (roomLoss / 4f));
 
         capi.World.PlaySoundAt(sound, sx, sy, sz, null, EnumSoundType.Ambient, pitch, 150f, volume);
