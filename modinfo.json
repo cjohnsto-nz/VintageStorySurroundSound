@@ -3,10 +3,10 @@
   "modid": "vintagestorysurroundsound",
   "name": "Surround Sound",
   "authors": ["chrisunfocused"],
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Enable multichannel output modes for surround sound",
   "dependencies": {
-    "game": "1.22.0-rc.1"
+    "game": "1.22.0"
   },
   "side": "Client"
 }
