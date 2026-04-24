@@ -69,6 +69,7 @@ internal static class AudioOpenAlInitContextPatch
             ALC.MakeContextCurrent(context);
             AudioOpenAl.CheckALError(logger, "Start");
             AL.Listener((ALListener3f)4102, 0f, 0f, 0f);
+            AL.Listener(ALListenerf.Gain, Math.Clamp(ClientSettings.MasterSoundLevel / 100f, 0f, 1f));
 
             ALContextAttributes contextAttributes = ALC.GetContextAttributes(device);
             LastActualOutputMode = AudioOutputModeHelper.ReadCurrentOutputMode(device);
