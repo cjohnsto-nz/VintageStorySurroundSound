@@ -28,6 +28,7 @@ public class SurroundSoundLabModSystem : ModSystem
         clientApi = api;
         harmony = new Harmony("vintagestorysurroundsound.audioopenal");
         harmony.PatchAll();
+        EntitySoundPosTrackingController.Initialize(api);
         CustomSoundRegistry.Register(api, Mod.Logger);
         if (SurroundSoundLabConfigManager.Current.ReplaceVanillaWeatherBeds)
         {
@@ -111,6 +112,7 @@ public class SurroundSoundLabModSystem : ModSystem
 
         leafRustleEmitterSystem?.Dispose();
         rainEmitterSystem?.Dispose();
+        EntitySoundPosTrackingController.Dispose();
         testService?.Dispose();
         harmony?.UnpatchAll(harmony.Id);
         clientApi = null;

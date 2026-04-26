@@ -241,6 +241,7 @@ internal sealed class SurroundDebugDialog : GuiDialog
         sb.AppendLine($"Last audit summary: {SoundAuditSummaryCollector.LastSummaryFilePath ?? "not written yet"}");
         SoundDebugCounts liveCounts = SoundAuditCollector.GetLiveCounts();
         sb.AppendLine($"Live sounds: total {liveCounts.TotalActive}, mono {liveCounts.MonoActive}, stereo {liveCounts.StereoActive}, multichannel {liveCounts.MultichannelActive}, direct {liveCounts.DirectActive}");
+        sb.AppendLine($"Entity sound pos tracking: {EntitySoundPosTrackingController.TrackedCount}/{SurroundSoundLabConfigManager.Current.MaxTrackedEntitySounds}");
         int liveLeafEmitters = leafRustleEmitterSystem?.GetActiveLeafEmitterCount(capi.ElapsedMilliseconds) ?? 0;
         sb.AppendLine($"Live leaf emitters: {liveLeafEmitters}");
         int liveLeafVoices = leafRustleEmitterSystem?.GetActiveLeafVoiceCount(capi.ElapsedMilliseconds) ?? 0;
