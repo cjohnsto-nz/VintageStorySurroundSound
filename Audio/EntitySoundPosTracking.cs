@@ -31,6 +31,39 @@ internal static class EntitySoundPosTrackingController
         }
     }
 
+    public static List<EntitySoundPosTrackingDebugVisual> GetDebugSnapshot()
+    {
+        lock (SyncRoot)
+        {
+            var snapshot = new List<EntitySoundPosTrackingDebugVisual>(TrackedSounds.Count);
+            for (int i = 0; i < TrackedSounds.Count; i++)
+            {
+                TrackedEntitySound tracked = TrackedSounds[i];
+                if (tracked.Sound == null || tracked.Sound.IsDisposed || tracked.Sound.HasStopped)
+                {
+                    continue;
+                }
+
+                if (!TryResolveEntity(tracked.Metadata, out Entity entity))
+                {
+                    continue;
+                }
+
+                Vec3f entityPosition = BuildTrackedPosition(entity, tracked.Metadata.AnchorOffset);
+                Vec3f soundPosition = tracked.Sound.Params?.Position ?? entityPosition;
+                snapshot.Add(new EntitySoundPosTrackingDebugVisual(
+                    tracked.Metadata.EntityId,
+                    new Vec3d(entityPosition.X, entityPosition.Y, entityPosition.Z),
+                    new Vec3d(soundPosition.X, soundPosition.Y, soundPosition.Z),
+                    tracked.Metadata.Inferred,
+                    entity.Code?.ToShortString() ?? entity.GetType().Name
+                ));
+            }
+
+            return snapshot;
+        }
+    }
+
     public static void Initialize(ICoreClientAPI api)
     {
         Dispose();
@@ -375,6 +408,8 @@ internal static class EntitySoundPosTrackingController
     }
 }
 
+internal readonly record struct EntitySoundPosTrackingDebugVisual(long EntityId, Vec3d EntityPosition, Vec3d SoundPosition, bool Inferred, string Label);
+
 internal sealed class EntitySoundPosTrackingMetadata
 {
     public EntitySoundPosTrackingMetadata(Entity entity, Vec3f anchorOffset, bool inferred)
@@ -417,9 +452,6 @@ internal static class EntitySoundPosTrackingPlayback
 {
     private static readonly AccessTools.FieldRef<ClientMain, Queue<ILoadedSound>> ActiveSoundsRef =
         AccessTools.FieldRefAccess<ClientMain, Queue<ILoadedSound>>("ActiveSounds");
-
-    private static readonly MethodInfo StartPlayingMethod =
-        AccessTools.Method(typeof(ClientMain), "StartPlaying", new[] { typeof(AudioData), typeof(SoundParams), typeof(AssetLocation) });
 
     public static bool TryPlayTrackedSoundAttributes(ClientMain game, SoundAttributes sound, Entity entity, float volumeMultiplier, out int durationMs)
     {
@@ -539,24 +571,14 @@ internal static class EntitySoundPosTrackingPlayback
         soundParams.Volume *= volume;
         EntitySoundPosTrackingMetadataStore.Attach(soundParams, metadata);
 
-        if (!ScreenManager.soundAudioData.TryGetValue(resolvedLocation, out AudioData audioData) || audioData == null)
-        {
-            game.Platform.Logger.Warning("Audio File not found: {0}", resolvedLocation);
-            return 0;
-        }
-
-        int loadResult = audioData.Load_Async(new MainThreadAction(game, () => InvokeStartPlaying(game, audioData, soundParams, resolvedLocation), "playSound"));
-        return loadResult >= 0 ? loadResult : 500;
-    }
-
-    private static int InvokeStartPlaying(ClientMain game, AudioData audioData, SoundParams soundParams, AssetLocation location)
-    {
-        if (StartPlayingMethod == null)
+        ILoadedSound loadedSound = game.LoadSound(soundParams);
+        if (loadedSound == null)
         {
             return 0;
         }
 
-        return (int)(StartPlayingMethod.Invoke(game, new object[] { audioData, soundParams, location }) ?? 0);
+        loadedSound.Start();
+        return 500;
     }
 
     private static bool ShouldUseDefinitePosTracking(Entity entity)

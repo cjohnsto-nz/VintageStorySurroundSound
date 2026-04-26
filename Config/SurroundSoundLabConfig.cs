@@ -62,6 +62,7 @@ public sealed class SurroundSoundLabConfig
     public int EntitySoundPosTrackingUpdateMs { get; set; } = 16;
     public int MaxTrackedEntitySounds { get; set; } = 128;
     public float EntitySoundPosTrackingInferenceMaxDistance { get; set; } = 1.25f;
+    public bool ShowEntitySoundPosTrackingDebugVisuals { get; set; } = false;
     public bool FreezeOneShotEntitySoundsOnDespawn { get; set; } = true;
     public bool StopLoopingEntitySoundsOnDespawn { get; set; } = true;
     public bool EnableExperimentalRainEmitters { get; set; } = true;

@@ -12,6 +12,7 @@ public class SurroundSoundLabModSystem : ModSystem
     private ChannelTestService testService;
     private SurroundDebugDialog debugDialog;
     private EntitySoundOcclusionDebugRenderer entitySoundOcclusionDebugRenderer;
+    private EntitySoundPosTrackingDebugRenderer entitySoundPosTrackingDebugRenderer;
     private LeafRustleEmitterSystem leafRustleEmitterSystem;
     private LeafRustleDebugRenderer leafRustleDebugRenderer;
     private RainEmitterSystem rainEmitterSystem;
@@ -56,6 +57,8 @@ public class SurroundSoundLabModSystem : ModSystem
         {
             entitySoundOcclusionDebugRenderer = new EntitySoundOcclusionDebugRenderer(api);
             api.Event.RegisterRenderer(entitySoundOcclusionDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-entityocclusiondebug");
+            entitySoundPosTrackingDebugRenderer = new EntitySoundPosTrackingDebugRenderer(api);
+            api.Event.RegisterRenderer(entitySoundPosTrackingDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-entitytrackingdebug");
             testService = new ChannelTestService(api);
             debugDialog = new SurroundDebugDialog(api, testService, leafRustleEmitterSystem, rainEmitterSystem);
             api.Gui.RegisterDialog(debugDialog);
@@ -119,6 +122,16 @@ public class SurroundSoundLabModSystem : ModSystem
 
             entitySoundOcclusionDebugRenderer.Dispose();
             entitySoundOcclusionDebugRenderer = null;
+        }
+        if (entitySoundPosTrackingDebugRenderer != null)
+        {
+            if (clientApi != null)
+            {
+                clientApi.Event.UnregisterRenderer(entitySoundPosTrackingDebugRenderer, EnumRenderStage.Opaque);
+            }
+
+            entitySoundPosTrackingDebugRenderer.Dispose();
+            entitySoundPosTrackingDebugRenderer = null;
         }
 
         leafRustleEmitterSystem?.Dispose();
