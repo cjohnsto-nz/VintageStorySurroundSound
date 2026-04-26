@@ -31,7 +31,7 @@ internal sealed class EntitySoundOcclusionDebugRenderer : IRenderer
             return;
         }
 
-        List<EntitySoundOcclusionDebugRay> rays = EntitySoundPosTrackingController.GetOcclusionDebugRaySnapshot(capi.ElapsedMilliseconds);
+        List<EntitySoundOcclusionDebugRay> rays = SoundOcclusion.GetDebugRaySnapshot(capi.ElapsedMilliseconds);
         if (rays.Count == 0)
         {
             return;

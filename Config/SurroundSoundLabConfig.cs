@@ -31,9 +31,9 @@ public sealed class SurroundSoundLabConfig
     public bool EnableEntitySoundBlockOcclusion { get; set; } = true;
     public int EntitySoundBlockOcclusionMaxBlocks { get; set; } = 8;
     public float EntitySoundBlockOcclusionVolumePerBlock { get; set; } = 0.78f;
-    public float EntitySoundBlockOcclusionLowPassPerBlock { get; set; } = 0.78f;
+    public float EntitySoundBlockOcclusionLowPassPerBlock { get; set; } = 0.8f;
     public float EntitySoundBlockOcclusionMinVolumeFactor { get; set; } = 0.08f;
-    public float EntitySoundBlockOcclusionMinLowPass { get; set; } = 0.12f;
+    public float EntitySoundBlockOcclusionMinLowPass { get; set; } = 0.04f;
     public bool ShowEntitySoundOcclusionDebugRays { get; set; } = false;
     public bool EnableEntitySoundDoppler { get; set; } = false;
     public float EntitySoundDopplerStrength { get; set; } = 1f;

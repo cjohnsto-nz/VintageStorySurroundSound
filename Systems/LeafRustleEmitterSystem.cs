@@ -17,6 +17,11 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
     private const int MaxConcurrentLeafVoices = 75;
     private const long DiscoveryRefreshMs = 450;
     private const int PlaybackTickMs = 150;
+    private const float BaseEmitsPerSecond = 2.1f;
+    private const float WindEmitsPerSecond = 3.2f;
+    private const float LeafDensityEmitsPerSecond = 1.4f;
+    private const float MaxEmissionBudget = 3.0f;
+    private const int MaxEmitsPerTick = 2;
     private const double ImmediateRingMaxDistance = 2.0;
     private const double NearRingMaxDistance = 5.0;
     private const double MidRingMaxDistance = 20.0;
@@ -72,6 +77,8 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
     private int cachedNearCount;
     private int cachedFarCount;
     private FacingContext lastFacing;
+    private long lastEmissionBudgetMs;
+    private float emissionBudget;
 
     public LeafRustleEmitterSystem(ICoreClientAPI capi)
     {
@@ -175,6 +182,7 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
         {
             ClearCandidateCache();
             CleanupCooldowns(nowMs);
+            ResetEmissionBudget(nowMs);
             return;
         }
 
@@ -401,36 +409,63 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
             return false;
         }
 
+        int emitBudget = ConsumeEmissionBudget(windExposure, cachedLeafFactor, nowMs);
+        if (emitBudget <= 0)
+        {
+            return false;
+        }
+
         var activeCounts = GetActiveCountsByRing(nowMs);
         int immediateCapacity = Math.Max(0, MaxActiveEmittersPerPool - activeCounts[LeafRustleEmitterRing.Immediate]);
-        int immediateTarget = Math.Min(immediateCandidates.Count, Math.Min(Math.Min(slotsRemaining, immediateCapacity), 4));
+        int immediateTarget = Math.Min(immediateCandidates.Count, Math.Min(Math.Min(slotsRemaining, immediateCapacity), Math.Min(emitBudget - emitted, 1)));
         emitted += EmitDistributedFromPool(immediateCandidates, immediateTarget, playerPos, facing, nowMs, windExposure, roomLoss, cachedLeafFactor, usedKeys, LeafRustleEmitterRing.Immediate);
         slotsRemaining = Math.Max(0, MaxActiveLeafEmitters - activeLeafEmitters.Count);
 
-        if (slotsRemaining > 0)
+        if (slotsRemaining > 0 && emitted < emitBudget)
         {
             int nearCapacity = Math.Max(0, MaxActiveEmittersPerPool - activeCounts[LeafRustleEmitterRing.Near]);
-            int nearTarget = Math.Min(Math.Min(slotsRemaining, nearCapacity), Math.Clamp(2 + (windExposure >= 0.7f ? 1 : 0), 0, 3));
+            int nearTarget = Math.Min(Math.Min(slotsRemaining, nearCapacity), Math.Min(emitBudget - emitted, 1));
             emitted += EmitDistributedFromPool(nearCandidates, nearTarget, playerPos, facing, nowMs, windExposure, roomLoss, cachedLeafFactor, usedKeys, LeafRustleEmitterRing.Near);
             slotsRemaining = Math.Max(0, MaxActiveLeafEmitters - activeLeafEmitters.Count);
         }
 
-        if (slotsRemaining > 0)
+        if (slotsRemaining > 0 && emitted < emitBudget)
         {
             int midCapacity = Math.Max(0, MaxActiveEmittersPerPool - activeCounts[LeafRustleEmitterRing.Mid]);
-            int midTarget = Math.Min(Math.Min(slotsRemaining, midCapacity), Math.Clamp(2 + (windExposure >= 0.85f ? 1 : 0), 0, 3));
+            int midTarget = Math.Min(Math.Min(slotsRemaining, midCapacity), Math.Min(emitBudget - emitted, 1));
             emitted += EmitDistributedFromPool(midCandidates, midTarget, playerPos, facing, nowMs, windExposure, roomLoss, cachedLeafFactor, usedKeys, LeafRustleEmitterRing.Mid);
             slotsRemaining = Math.Max(0, MaxActiveLeafEmitters - activeLeafEmitters.Count);
         }
 
-        if (slotsRemaining > 0)
+        if (slotsRemaining > 0 && emitted < emitBudget)
         {
             int farCapacity = Math.Max(0, MaxActiveEmittersPerPool - activeCounts[LeafRustleEmitterRing.Far]);
-            int farTarget = Math.Min(Math.Min(slotsRemaining, farCapacity), Math.Clamp(1 + (windExposure >= 0.9f ? 1 : 0), 0, 2));
+            int farTarget = Math.Min(Math.Min(slotsRemaining, farCapacity), emitBudget - emitted);
             emitted += EmitDistributedFromPool(farCandidates, farTarget, playerPos, facing, nowMs, windExposure, roomLoss, cachedLeafFactor, usedKeys, LeafRustleEmitterRing.Far);
         }
 
         return emitted > 0;
+    }
+
+    private int ConsumeEmissionBudget(float windExposure, float leafFactor, long nowMs)
+    {
+        if (lastEmissionBudgetMs == 0)
+        {
+            lastEmissionBudgetMs = nowMs;
+            return 0;
+        }
+
+        float deltaSeconds = Math.Clamp((nowMs - lastEmissionBudgetMs) / 1000f, 0f, 1f);
+        lastEmissionBudgetMs = nowMs;
+        float emitsPerSecond = BaseEmitsPerSecond + (windExposure * WindEmitsPerSecond) + (leafFactor * LeafDensityEmitsPerSecond);
+        emissionBudget = Math.Min(MaxEmissionBudget, emissionBudget + (emitsPerSecond * deltaSeconds));
+        int available = Math.Min(MaxEmitsPerTick, (int)Math.Floor(emissionBudget));
+        if (available > 0)
+        {
+            emissionBudget -= available;
+        }
+
+        return available;
     }
 
     private int EmitDistributedFromPool(List<CandidateLeafBlock> sourcePool, int targetCount, EntityPos playerPos, FacingContext facing, long nowMs, float windExposure, float roomLoss, float leafFactor, HashSet<long> usedKeys, LeafRustleEmitterRing ring)
@@ -682,6 +717,13 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
         cachedLeafFactor = 0f;
         hasDiscoveryCenter = false;
         hasDebugRegions = false;
+        emissionBudget = 0f;
+    }
+
+    private void ResetEmissionBudget(long nowMs)
+    {
+        emissionBudget = 0f;
+        lastEmissionBudgetMs = nowMs;
     }
 
     private Dictionary<LeafRustleEmitterRing, int> GetActiveCountsByRing(long nowMs)
