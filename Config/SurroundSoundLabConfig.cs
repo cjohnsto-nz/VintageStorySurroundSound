@@ -27,6 +27,14 @@ public sealed class SurroundSoundLabConfig
     public float LeafRustlePitchVariationMultiplier { get; set; } = 1.5f;
     public bool EnableEntitySoundPosTracking { get; set; } = true;
     public bool EnableEntitySoundPosTrackingInference { get; set; } = true;
+    public bool EnableEntitySoundDoppler { get; set; } = true;
+    public float EntitySoundDopplerStrength { get; set; } = 2f;
+    public float EntitySoundDopplerSpeedOfSound { get; set; } = 343f;
+    public float EntitySoundDopplerMinPitchFactor { get; set; } = 0.5f;
+    public float EntitySoundDopplerMaxPitchFactor { get; set; } = 2.0f;
+    public float EntitySoundDopplerVelocitySmoothingSeconds { get; set; } = 0.35f;
+    public float EntitySoundDopplerPitchSmoothingSeconds { get; set; } = 0.18f;
+    public float EntitySoundDopplerDeadZoneBlocksPerSecond { get; set; } = 0.08f;
     public int EntitySoundPosTrackingUpdateMs { get; set; } = 16;
     public int MaxTrackedEntitySounds { get; set; } = 128;
     public float EntitySoundPosTrackingInferenceMaxDistance { get; set; } = 1.25f;
