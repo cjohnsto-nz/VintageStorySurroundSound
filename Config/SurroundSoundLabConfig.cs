@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System;
 using Vintagestory.API.Common;
 
 namespace SurroundSoundLab;
@@ -29,7 +31,21 @@ public sealed class SurroundSoundLabConfig
     public bool EnableEntitySoundPosTracking { get; set; } = true;
     public bool EnableEntitySoundPosTrackingInference { get; set; } = true;
     public bool EnableEntitySoundBlockOcclusion { get; set; } = true;
+    public bool EnableStaticSoundBlockOcclusion { get; set; } = true;
+    public bool LimitStaticSoundBlockOcclusionToWhitelist { get; set; } = true;
+    public List<string> StaticSoundBlockOcclusionSoundWhitelist { get; set; } =
+    [
+        "water",
+        "anvil",
+        "quern",
+        "pulverizer",
+        "helvehammer",
+        "hammer"
+    ];
     public int EntitySoundBlockOcclusionMaxBlocks { get; set; } = 8;
+    public int EntitySoundBlockOcclusionRefreshMs { get; set; } = 500;
+    public float EntitySoundBlockOcclusionMinDistance { get; set; } = 2f;
+    public float EntitySoundBlockOcclusionMinOutsideRoomUnits { get; set; } = 2f;
     public float EntitySoundBlockOcclusionVolumePerBlock { get; set; } = 0.78f;
     public float EntitySoundBlockOcclusionLowPassPerBlock { get; set; } = 0.8f;
     public float EntitySoundBlockOcclusionMinVolumeFactor { get; set; } = 0.08f;
@@ -68,12 +84,50 @@ internal static class SurroundSoundLabConfigManager
             Current = api.LoadModConfig<SurroundSoundLabConfig>(ConfigFileName)
                 ?? api.LoadModConfig<SurroundSoundLabConfig>(LegacyConfigFileName)
                 ?? new SurroundSoundLabConfig();
+            Normalize(Current);
             api.StoreModConfig(Current, ConfigFileName);
         }
         catch (System.Exception ex)
         {
             logger.Warning("[VintageStorySurroundSound] Failed to load config, using defaults: " + ex.Message);
             Current = new SurroundSoundLabConfig();
+            Normalize(Current);
         }
+    }
+
+    private static void Normalize(SurroundSoundLabConfig config)
+    {
+        config.StaticSoundBlockOcclusionSoundWhitelist = DeduplicateList(
+            config.StaticSoundBlockOcclusionSoundWhitelist,
+            new List<string>
+            {
+                "water",
+                "anvil",
+                "quern",
+                "pulverizer",
+                "helvehammer",
+                "hammer"
+            }
+        );
+    }
+
+    private static List<string> DeduplicateList(List<string> values, List<string> fallback)
+    {
+        List<string> source = values != null && values.Count > 0 ? values : fallback;
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var deduplicated = new List<string>();
+
+        for (int i = 0; i < source.Count; i++)
+        {
+            string value = source[i]?.Trim();
+            if (string.IsNullOrWhiteSpace(value) || !seen.Add(value))
+            {
+                continue;
+            }
+
+            deduplicated.Add(value);
+        }
+
+        return deduplicated;
     }
 }

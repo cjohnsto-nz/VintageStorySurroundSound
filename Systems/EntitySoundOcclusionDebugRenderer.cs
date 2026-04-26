@@ -63,11 +63,14 @@ internal sealed class EntitySoundOcclusionDebugRenderer : IRenderer
 
     private static int GetRayColor(EntitySoundOcclusionDebugRay ray)
     {
-        int maxBlocks = Math.Max(1, ray.MaxBlocks);
-        float t = Math.Clamp(ray.OccludingBlocks / (float)maxBlocks, 0f, 1f);
-        int red = (int)Math.Round(255 * t);
-        int green = (int)Math.Round(255 * (1f - t));
-        return ColorUtil.ToRgba(204, red, green, 0);
+        float unchanged = Math.Clamp(Math.Min(ray.VolumeFactor, ray.LowPassFactor), 0f, 1f);
+        float volumeOcclusion = Math.Clamp(1f - ray.VolumeFactor, 0f, 1f);
+        float lowPassOcclusion = Math.Clamp(1f - ray.LowPassFactor, 0f, 1f);
+
+        int red = (int)Math.Round(255f * volumeOcclusion);
+        int green = (int)Math.Round(255f * unchanged);
+        int blue = (int)Math.Round(255f * lowPassOcclusion);
+        return ColorUtil.ToRgba(204, red, green, blue);
     }
 
     private void RenderWorldLine(BlockPos origin, double x1, double y1, double z1, double x2, double y2, double z2, int color)

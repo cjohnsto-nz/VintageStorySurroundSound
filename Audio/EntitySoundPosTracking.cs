@@ -145,16 +145,21 @@ internal static class EntitySoundPosTrackingController
     {
         Vec3f listenerPosition = GetListenerPosition();
         Vec3f soundPosition = null;
+        bool shouldApplyBlockOcclusion = true;
         if (TryResolveEntity(metadata, out Entity entity))
         {
             soundPosition = BuildTrackedPosition(entity, metadata.AnchorOffset);
+            shouldApplyBlockOcclusion = ShouldApplyBlockOcclusion(entity);
         }
 
         float basePitch = sound.Params?.Pitch ?? 1f;
         float baseVolume = sound.Params?.Volume ?? 1f;
         float initialDistance = soundPosition != null && listenerPosition != null ? Distance(soundPosition, listenerPosition) : 0f;
         var tracked = new TrackedEntitySound(sound, metadata, basePitch, basePitch, baseVolume, initialDistance, soundPosition, listenerPosition, capi?.ElapsedMilliseconds ?? 0);
-        ApplyInitialBlockOcclusion(tracked, soundPosition);
+        if (shouldApplyBlockOcclusion)
+        {
+            ApplyInitialBlockOcclusion(tracked, soundPosition);
+        }
         return tracked;
     }
 
@@ -167,8 +172,22 @@ internal static class EntitySoundPosTrackingController
 
         Vec3f position = BuildTrackedPosition(entity, tracked.Metadata.AnchorOffset);
         tracked.Sound.SetPosition(position);
+        if (ShouldApplyBlockOcclusion(entity))
+        {
+            SoundOcclusion.ApplyDynamicOcclusion(tracked.Sound, position, tracked.BaseVolume);
+        }
         ApplyDopplerPitch(tracked, position);
         return true;
+    }
+
+    private static bool ShouldApplyBlockOcclusion(Entity entity)
+    {
+        return !IsCurrentPlayerEntity(entity);
+    }
+
+    private static bool IsCurrentPlayerEntity(Entity entity)
+    {
+        return entity != null && ReferenceEquals(entity, capi?.World?.Player?.Entity);
     }
 
     private static bool TryResolveEntity(EntitySoundPosTrackingMetadata metadata, out Entity entity)
