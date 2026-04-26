@@ -31,6 +31,39 @@ internal static class EntitySoundPosTrackingController
         }
     }
 
+    public static List<EntitySoundPosTrackingDebugVisual> GetDebugSnapshot()
+    {
+        lock (SyncRoot)
+        {
+            var snapshot = new List<EntitySoundPosTrackingDebugVisual>(TrackedSounds.Count);
+            for (int i = 0; i < TrackedSounds.Count; i++)
+            {
+                TrackedEntitySound tracked = TrackedSounds[i];
+                if (tracked.Sound == null || tracked.Sound.IsDisposed || tracked.Sound.HasStopped)
+                {
+                    continue;
+                }
+
+                if (!TryResolveEntity(tracked.Metadata, out Entity entity))
+                {
+                    continue;
+                }
+
+                Vec3f entityPosition = BuildTrackedPosition(entity, tracked.Metadata.AnchorOffset);
+                Vec3f soundPosition = tracked.Sound.Params?.Position ?? entityPosition;
+                snapshot.Add(new EntitySoundPosTrackingDebugVisual(
+                    tracked.Metadata.EntityId,
+                    new Vec3d(entityPosition.X, entityPosition.Y, entityPosition.Z),
+                    new Vec3d(soundPosition.X, soundPosition.Y, soundPosition.Z),
+                    tracked.Metadata.Inferred,
+                    entity.Code?.ToShortString() ?? entity.GetType().Name
+                ));
+            }
+
+            return snapshot;
+        }
+    }
+
     public static void Initialize(ICoreClientAPI api)
     {
         Dispose();
@@ -74,8 +107,8 @@ internal static class EntitySoundPosTrackingController
             {
                 if (ReferenceEquals(TrackedSounds[i].Sound, sound))
                 {
-                    TrackedSounds[i] = new TrackedEntitySound(sound, metadata);
-                    TryUpdateSoundPosition(sound, metadata);
+                    TrackedSounds[i] = CreateTrackedSound(sound, metadata);
+                    TryUpdateSound(TrackedSounds[i]);
                     return;
                 }
             }
@@ -86,8 +119,8 @@ internal static class EntitySoundPosTrackingController
                 TrackedSounds.RemoveAt(0);
             }
 
-            TrackedSounds.Add(new TrackedEntitySound(sound, metadata));
-            TryUpdateSoundPosition(sound, metadata);
+            TrackedSounds.Add(CreateTrackedSound(sound, metadata));
+            TryUpdateSound(TrackedSounds[^1]);
         }
     }
 
@@ -109,7 +142,7 @@ internal static class EntitySoundPosTrackingController
                     continue;
                 }
 
-                if (!TryUpdateSoundPosition(tracked.Sound, tracked.Metadata))
+                if (!TryUpdateSound(tracked))
                 {
                     HandleLostEntity(tracked.Sound);
                     TrackedSounds.RemoveAt(i);
@@ -141,16 +174,53 @@ internal static class EntitySoundPosTrackingController
         }
     }
 
-    private static bool TryUpdateSoundPosition(ILoadedSound sound, EntitySoundPosTrackingMetadata metadata)
+    private static TrackedEntitySound CreateTrackedSound(ILoadedSound sound, EntitySoundPosTrackingMetadata metadata)
     {
-        if (!TryResolveEntity(metadata, out Entity entity))
+        Vec3f listenerPosition = GetListenerPosition();
+        Vec3f soundPosition = null;
+        bool shouldApplyBlockOcclusion = true;
+        if (TryResolveEntity(metadata, out Entity entity))
+        {
+            soundPosition = BuildTrackedPosition(entity, metadata.AnchorOffset);
+            shouldApplyBlockOcclusion = ShouldApplyBlockOcclusion(entity);
+        }
+
+        float basePitch = sound.Params?.Pitch ?? 1f;
+        float baseVolume = sound.Params?.Volume ?? 1f;
+        float initialDistance = soundPosition != null && listenerPosition != null ? Distance(soundPosition, listenerPosition) : 0f;
+        var tracked = new TrackedEntitySound(sound, metadata, basePitch, basePitch, baseVolume, initialDistance, soundPosition, listenerPosition, capi?.ElapsedMilliseconds ?? 0);
+        if (shouldApplyBlockOcclusion)
+        {
+            ApplyInitialBlockOcclusion(tracked, soundPosition);
+        }
+        return tracked;
+    }
+
+    private static bool TryUpdateSound(TrackedEntitySound tracked)
+    {
+        if (!TryResolveEntity(tracked.Metadata, out Entity entity))
         {
             return false;
         }
 
-        Vec3f position = BuildTrackedPosition(entity, metadata.AnchorOffset);
-        sound.SetPosition(position);
+        Vec3f position = BuildTrackedPosition(entity, tracked.Metadata.AnchorOffset);
+        tracked.Sound.SetPosition(position);
+        if (ShouldApplyBlockOcclusion(entity))
+        {
+            SoundOcclusion.ApplyDynamicOcclusion(tracked.Sound, position, tracked.BaseVolume);
+        }
+        ApplyDopplerPitch(tracked, position);
         return true;
+    }
+
+    private static bool ShouldApplyBlockOcclusion(Entity entity)
+    {
+        return !IsCurrentPlayerEntity(entity);
+    }
+
+    private static bool IsCurrentPlayerEntity(Entity entity)
+    {
+        return entity != null && ReferenceEquals(entity, capi?.World?.Player?.Entity);
     }
 
     private static bool TryResolveEntity(EntitySoundPosTrackingMetadata metadata, out Entity entity)
@@ -185,6 +255,101 @@ internal static class EntitySoundPosTrackingController
         );
     }
 
+    private static void ApplyDopplerPitch(TrackedEntitySound tracked, Vec3f soundPosition)
+    {
+        SurroundSoundLabConfig config = SurroundSoundLabConfigManager.Current;
+        Vec3f listenerPosition = GetListenerPosition();
+        long nowMs = capi?.ElapsedMilliseconds ?? 0;
+
+        if (!config.EnableEntitySoundDoppler
+            || tracked.LastSoundPosition == null
+            || tracked.LastListenerPosition == null
+            || listenerPosition == null
+            || nowMs <= tracked.LastUpdateMs)
+        {
+            tracked.UpdateLastPositions(soundPosition, listenerPosition, nowMs);
+            tracked.Sound.SetPitch(tracked.BasePitch);
+            tracked.CurrentPitch = tracked.BasePitch;
+            return;
+        }
+
+        float deltaSeconds = (nowMs - tracked.LastUpdateMs) / 1000f;
+        if (deltaSeconds <= 0f)
+        {
+            return;
+        }
+
+        float currentDistance = Distance(soundPosition, listenerPosition);
+        if (currentDistance < 0.001f)
+        {
+            tracked.UpdateLastPositions(soundPosition, listenerPosition, nowMs);
+            tracked.Sound.SetPitch(tracked.BasePitch);
+            tracked.CurrentPitch = tracked.BasePitch;
+            return;
+        }
+
+        float speedOfSound = Math.Max(1f, config.EntitySoundDopplerSpeedOfSound);
+        float strength = Math.Max(0f, config.EntitySoundDopplerStrength);
+        float closingSpeed = (tracked.SmoothedDistance - currentDistance) / deltaSeconds;
+        float velocitySmoothingSeconds = Math.Max(0.001f, config.EntitySoundDopplerVelocitySmoothingSeconds);
+        float velocityBlend = 1f - (float)Math.Exp(-deltaSeconds / velocitySmoothingSeconds);
+        tracked.SmoothedClosingSpeed += (closingSpeed - tracked.SmoothedClosingSpeed) * velocityBlend;
+
+        float deadZone = Math.Max(0f, config.EntitySoundDopplerDeadZoneBlocksPerSecond);
+        float smoothedClosingSpeed = Math.Abs(tracked.SmoothedClosingSpeed) < deadZone ? 0f : tracked.SmoothedClosingSpeed;
+        float rawFactor = 1f + ((smoothedClosingSpeed * strength) / speedOfSound);
+        float minFactor = Math.Clamp(config.EntitySoundDopplerMinPitchFactor, 0.1f, 3f);
+        float maxFactor = Math.Clamp(config.EntitySoundDopplerMaxPitchFactor, minFactor, 3f);
+        float targetPitch = Math.Clamp(tracked.BasePitch * rawFactor, tracked.BasePitch * minFactor, tracked.BasePitch * maxFactor);
+        float pitchSmoothingSeconds = Math.Max(0.001f, config.EntitySoundDopplerPitchSmoothingSeconds);
+        float pitchBlend = 1f - (float)Math.Exp(-deltaSeconds / pitchSmoothingSeconds);
+        float pitch = tracked.CurrentPitch + ((targetPitch - tracked.CurrentPitch) * pitchBlend);
+
+        tracked.Sound.SetPitch(pitch);
+        tracked.CurrentPitch = pitch;
+        tracked.SmoothedDistance += (currentDistance - tracked.SmoothedDistance) * velocityBlend;
+        tracked.UpdateLastPositions(soundPosition, listenerPosition, nowMs);
+    }
+
+    private static Vec3f GetListenerPosition()
+    {
+        Entity listenerEntity = capi?.World?.Player?.Entity;
+        if (listenerEntity?.Pos == null)
+        {
+            return null;
+        }
+
+        return new Vec3f((float)listenerEntity.Pos.X, (float)listenerEntity.Pos.InternalY, (float)listenerEntity.Pos.Z);
+    }
+
+    private static Vec3f GetListenerEarPosition()
+    {
+        Entity listenerEntity = capi?.World?.Player?.Entity;
+        if (listenerEntity?.Pos == null)
+        {
+            return null;
+        }
+
+        return new Vec3f(
+            (float)(listenerEntity.Pos.X + listenerEntity.LocalEyePos.X),
+            (float)(listenerEntity.Pos.InternalY + listenerEntity.LocalEyePos.Y),
+            (float)(listenerEntity.Pos.Z + listenerEntity.LocalEyePos.Z)
+        );
+    }
+
+    private static void ApplyInitialBlockOcclusion(TrackedEntitySound tracked, Vec3f soundPosition)
+    {
+        SoundOcclusion.ApplyInitialOcclusion(tracked.Sound, soundPosition, tracked.BaseVolume);
+    }
+
+    private static float Distance(Vec3f first, Vec3f second)
+    {
+        float dx = first.X - second.X;
+        float dy = first.Y - second.Y;
+        float dz = first.Z - second.Z;
+        return (float)Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
+    }
+
     private static void HandleLostEntity(ILoadedSound sound)
     {
         if (sound == null)
@@ -208,8 +373,42 @@ internal static class EntitySoundPosTrackingController
         }
     }
 
-    private readonly record struct TrackedEntitySound(ILoadedSound Sound, EntitySoundPosTrackingMetadata Metadata);
+    private sealed class TrackedEntitySound
+    {
+        public TrackedEntitySound(ILoadedSound sound, EntitySoundPosTrackingMetadata metadata, float basePitch, float currentPitch, float baseVolume, float smoothedDistance, Vec3f lastSoundPosition, Vec3f lastListenerPosition, long lastUpdateMs)
+        {
+            Sound = sound;
+            Metadata = metadata;
+            BasePitch = basePitch;
+            CurrentPitch = currentPitch;
+            BaseVolume = baseVolume;
+            SmoothedDistance = smoothedDistance;
+            LastSoundPosition = lastSoundPosition;
+            LastListenerPosition = lastListenerPosition;
+            LastUpdateMs = lastUpdateMs;
+        }
+
+        public ILoadedSound Sound { get; }
+        public EntitySoundPosTrackingMetadata Metadata { get; }
+        public float BasePitch { get; }
+        public float CurrentPitch { get; set; }
+        public float BaseVolume { get; }
+        public float SmoothedDistance { get; set; }
+        public float SmoothedClosingSpeed { get; set; }
+        public Vec3f LastSoundPosition { get; private set; }
+        public Vec3f LastListenerPosition { get; private set; }
+        public long LastUpdateMs { get; private set; }
+
+        public void UpdateLastPositions(Vec3f soundPosition, Vec3f listenerPosition, long updateMs)
+        {
+            LastSoundPosition = soundPosition;
+            LastListenerPosition = listenerPosition;
+            LastUpdateMs = updateMs;
+        }
+    }
 }
+
+internal readonly record struct EntitySoundPosTrackingDebugVisual(long EntityId, Vec3d EntityPosition, Vec3d SoundPosition, bool Inferred, string Label);
 
 internal sealed class EntitySoundPosTrackingMetadata
 {
@@ -253,9 +452,6 @@ internal static class EntitySoundPosTrackingPlayback
 {
     private static readonly AccessTools.FieldRef<ClientMain, Queue<ILoadedSound>> ActiveSoundsRef =
         AccessTools.FieldRefAccess<ClientMain, Queue<ILoadedSound>>("ActiveSounds");
-
-    private static readonly MethodInfo StartPlayingMethod =
-        AccessTools.Method(typeof(ClientMain), "StartPlaying", new[] { typeof(AudioData), typeof(SoundParams), typeof(AssetLocation) });
 
     public static bool TryPlayTrackedSoundAttributes(ClientMain game, SoundAttributes sound, Entity entity, float volumeMultiplier, out int durationMs)
     {
@@ -358,7 +554,8 @@ internal static class EntitySoundPosTrackingPlayback
             return 0;
         }
 
-        if (game.Player?.Entity?.Pos != null && game.Player.Entity.Pos.SquareDistanceTo(x, y, z) > range * range)
+        float scaledRange = SoundRangeFalloff.ScaleRange(range);
+        if (game.Player?.Entity?.Pos != null && game.Player.Entity.Pos.SquareDistanceTo(x, y, z) > scaledRange * scaledRange)
         {
             return 0;
         }
@@ -367,31 +564,21 @@ internal static class EntitySoundPosTrackingPlayback
         {
             Position = new Vec3f((float)x, (float)y, (float)z),
             RelativePosition = false,
-            Range = range,
+            Range = scaledRange,
             SoundType = soundType,
             Pitch = pitch
         };
         soundParams.Volume *= volume;
         EntitySoundPosTrackingMetadataStore.Attach(soundParams, metadata);
 
-        if (!ScreenManager.soundAudioData.TryGetValue(resolvedLocation, out AudioData audioData) || audioData == null)
-        {
-            game.Platform.Logger.Warning("Audio File not found: {0}", resolvedLocation);
-            return 0;
-        }
-
-        int loadResult = audioData.Load_Async(new MainThreadAction(game, () => InvokeStartPlaying(game, audioData, soundParams, resolvedLocation), "playSound"));
-        return loadResult >= 0 ? loadResult : 500;
-    }
-
-    private static int InvokeStartPlaying(ClientMain game, AudioData audioData, SoundParams soundParams, AssetLocation location)
-    {
-        if (StartPlayingMethod == null)
+        ILoadedSound loadedSound = game.LoadSound(soundParams);
+        if (loadedSound == null)
         {
             return 0;
         }
 
-        return (int)(StartPlayingMethod.Invoke(game, new object[] { audioData, soundParams, location }) ?? 0);
+        loadedSound.Start();
+        return 500;
     }
 
     private static bool ShouldUseDefinitePosTracking(Entity entity)

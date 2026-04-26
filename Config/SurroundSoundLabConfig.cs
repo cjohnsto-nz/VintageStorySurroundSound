@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System;
 using Vintagestory.API.Common;
 
 namespace SurroundSoundLab;
@@ -22,14 +24,45 @@ public sealed class SurroundSoundLabConfig
     public bool UpmixStereoToSurround { get; set; } = true;
     public float StereoUpmixGainDb { get; set; } = -6f;
     public bool ReplaceVanillaWeatherBeds { get; set; } = true;
+    public float SoundRangeMultiplier { get; set; } = 3f;
     public bool EnableExperimentalLeafRustleEmitters { get; set; } = true;
     public float LeafRustleVolumeMultiplier { get; set; } = 1.75f;
     public float LeafRustlePitchVariationMultiplier { get; set; } = 1.5f;
     public bool EnableEntitySoundPosTracking { get; set; } = true;
     public bool EnableEntitySoundPosTrackingInference { get; set; } = true;
+    public bool EnableEntitySoundBlockOcclusion { get; set; } = true;
+    public bool EnableStaticSoundBlockOcclusion { get; set; } = true;
+    public bool LimitStaticSoundBlockOcclusionToWhitelist { get; set; } = true;
+    public List<string> StaticSoundBlockOcclusionSoundWhitelist { get; set; } =
+    [
+        "water",
+        "anvil",
+        "quern",
+        "pulverizer",
+        "helvehammer",
+        "hammer"
+    ];
+    public int EntitySoundBlockOcclusionMaxBlocks { get; set; } = 8;
+    public int EntitySoundBlockOcclusionRefreshMs { get; set; } = 500;
+    public float EntitySoundBlockOcclusionMinDistance { get; set; } = 2f;
+    public float EntitySoundBlockOcclusionMinOutsideRoomUnits { get; set; } = 2f;
+    public float EntitySoundBlockOcclusionVolumePerBlock { get; set; } = 0.78f;
+    public float EntitySoundBlockOcclusionLowPassPerBlock { get; set; } = 0.8f;
+    public float EntitySoundBlockOcclusionMinVolumeFactor { get; set; } = 0.08f;
+    public float EntitySoundBlockOcclusionMinLowPass { get; set; } = 0.04f;
+    public bool ShowEntitySoundOcclusionDebugRays { get; set; } = false;
+    public bool EnableEntitySoundDoppler { get; set; } = false;
+    public float EntitySoundDopplerStrength { get; set; } = 1f;
+    public float EntitySoundDopplerSpeedOfSound { get; set; } = 343f;
+    public float EntitySoundDopplerMinPitchFactor { get; set; } = 0.5f;
+    public float EntitySoundDopplerMaxPitchFactor { get; set; } = 2.0f;
+    public float EntitySoundDopplerVelocitySmoothingSeconds { get; set; } = 0.35f;
+    public float EntitySoundDopplerPitchSmoothingSeconds { get; set; } = 0.18f;
+    public float EntitySoundDopplerDeadZoneBlocksPerSecond { get; set; } = 0.08f;
     public int EntitySoundPosTrackingUpdateMs { get; set; } = 16;
     public int MaxTrackedEntitySounds { get; set; } = 128;
     public float EntitySoundPosTrackingInferenceMaxDistance { get; set; } = 1.25f;
+    public bool ShowEntitySoundPosTrackingDebugVisuals { get; set; } = false;
     public bool FreezeOneShotEntitySoundsOnDespawn { get; set; } = true;
     public bool StopLoopingEntitySoundsOnDespawn { get; set; } = true;
     public bool EnableExperimentalRainEmitters { get; set; } = true;
@@ -52,12 +85,50 @@ internal static class SurroundSoundLabConfigManager
             Current = api.LoadModConfig<SurroundSoundLabConfig>(ConfigFileName)
                 ?? api.LoadModConfig<SurroundSoundLabConfig>(LegacyConfigFileName)
                 ?? new SurroundSoundLabConfig();
+            Normalize(Current);
             api.StoreModConfig(Current, ConfigFileName);
         }
         catch (System.Exception ex)
         {
             logger.Warning("[VintageStorySurroundSound] Failed to load config, using defaults: " + ex.Message);
             Current = new SurroundSoundLabConfig();
+            Normalize(Current);
         }
+    }
+
+    private static void Normalize(SurroundSoundLabConfig config)
+    {
+        config.StaticSoundBlockOcclusionSoundWhitelist = DeduplicateList(
+            config.StaticSoundBlockOcclusionSoundWhitelist,
+            new List<string>
+            {
+                "water",
+                "anvil",
+                "quern",
+                "pulverizer",
+                "helvehammer",
+                "hammer"
+            }
+        );
+    }
+
+    private static List<string> DeduplicateList(List<string> values, List<string> fallback)
+    {
+        List<string> source = values != null && values.Count > 0 ? values : fallback;
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var deduplicated = new List<string>();
+
+        for (int i = 0; i < source.Count; i++)
+        {
+            string value = source[i]?.Trim();
+            if (string.IsNullOrWhiteSpace(value) || !seen.Add(value))
+            {
+                continue;
+            }
+
+            deduplicated.Add(value);
+        }
+
+        return deduplicated;
     }
 }
