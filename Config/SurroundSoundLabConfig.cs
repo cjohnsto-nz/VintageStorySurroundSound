@@ -25,6 +25,13 @@ public sealed class SurroundSoundLabConfig
     public bool EnableExperimentalLeafRustleEmitters { get; set; } = true;
     public float LeafRustleVolumeMultiplier { get; set; } = 1.75f;
     public float LeafRustlePitchVariationMultiplier { get; set; } = 1.5f;
+    public bool EnableEntitySoundPosTracking { get; set; } = true;
+    public bool EnableEntitySoundPosTrackingInference { get; set; } = true;
+    public int EntitySoundPosTrackingUpdateMs { get; set; } = 16;
+    public int MaxTrackedEntitySounds { get; set; } = 128;
+    public float EntitySoundPosTrackingInferenceMaxDistance { get; set; } = 1.25f;
+    public bool FreezeOneShotEntitySoundsOnDespawn { get; set; } = true;
+    public bool StopLoopingEntitySoundsOnDespawn { get; set; } = true;
     public bool EnableExperimentalRainEmitters { get; set; } = true;
     public bool ShowLeafRustleDebugVisuals { get; set; } = false;
     public bool ShowRainEmitterDebugVisuals { get; set; } = false;
