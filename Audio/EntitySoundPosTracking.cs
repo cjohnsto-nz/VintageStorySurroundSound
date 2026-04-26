@@ -17,6 +17,7 @@ internal static class EntitySoundPosTrackingController
 {
     private static readonly object SyncRoot = new();
     private static readonly List<TrackedEntitySound> TrackedSounds = new();
+    private static readonly List<EntitySoundOcclusionDebugRay> OcclusionDebugRays = new();
     private static ICoreClientAPI capi;
     private static long tickListenerId;
 
@@ -56,6 +57,7 @@ internal static class EntitySoundPosTrackingController
         lock (SyncRoot)
         {
             TrackedSounds.Clear();
+            OcclusionDebugRays.Clear();
         }
 
         capi = null;
@@ -88,6 +90,15 @@ internal static class EntitySoundPosTrackingController
 
             TrackedSounds.Add(CreateTrackedSound(sound, metadata));
             TryUpdateSound(TrackedSounds[^1]);
+        }
+    }
+
+    public static List<EntitySoundOcclusionDebugRay> GetOcclusionDebugRaySnapshot(long nowMs)
+    {
+        lock (SyncRoot)
+        {
+            OcclusionDebugRays.RemoveAll(ray => ray.ExpiresMs <= nowMs);
+            return new List<EntitySoundOcclusionDebugRay>(OcclusionDebugRays);
         }
     }
 
@@ -151,8 +162,11 @@ internal static class EntitySoundPosTrackingController
         }
 
         float basePitch = sound.Params?.Pitch ?? 1f;
+        float baseVolume = sound.Params?.Volume ?? 1f;
         float initialDistance = soundPosition != null && listenerPosition != null ? Distance(soundPosition, listenerPosition) : 0f;
-        return new TrackedEntitySound(sound, metadata, basePitch, basePitch, initialDistance, soundPosition, listenerPosition, capi?.ElapsedMilliseconds ?? 0);
+        var tracked = new TrackedEntitySound(sound, metadata, basePitch, basePitch, baseVolume, initialDistance, soundPosition, listenerPosition, capi?.ElapsedMilliseconds ?? 0);
+        ApplyInitialBlockOcclusion(tracked, soundPosition);
+        return tracked;
     }
 
     private static bool TryUpdateSound(TrackedEntitySound tracked)
@@ -267,6 +281,138 @@ internal static class EntitySoundPosTrackingController
         return new Vec3f((float)listenerEntity.Pos.X, (float)listenerEntity.Pos.InternalY, (float)listenerEntity.Pos.Z);
     }
 
+    private static Vec3f GetListenerEarPosition()
+    {
+        Entity listenerEntity = capi?.World?.Player?.Entity;
+        if (listenerEntity?.Pos == null)
+        {
+            return null;
+        }
+
+        return new Vec3f(
+            (float)(listenerEntity.Pos.X + listenerEntity.LocalEyePos.X),
+            (float)(listenerEntity.Pos.InternalY + listenerEntity.LocalEyePos.Y),
+            (float)(listenerEntity.Pos.Z + listenerEntity.LocalEyePos.Z)
+        );
+    }
+
+    private static void ApplyInitialBlockOcclusion(TrackedEntitySound tracked, Vec3f soundPosition)
+    {
+        SurroundSoundLabConfig config = SurroundSoundLabConfigManager.Current;
+        if (!config.EnableEntitySoundBlockOcclusion || soundPosition == null)
+        {
+            tracked.Sound.SetVolume(tracked.BaseVolume);
+            tracked.Sound.SetLowPassfiltering(1f);
+            return;
+        }
+
+        Vec3f listenerPosition = GetListenerEarPosition();
+        if (listenerPosition == null)
+        {
+            return;
+        }
+
+        int occludingBlocks = CountOpaqueBlocksBetween(listenerPosition, soundPosition, Math.Max(0, config.EntitySoundBlockOcclusionMaxBlocks));
+        RecordOcclusionDebugRay(listenerPosition, soundPosition, occludingBlocks, config.EntitySoundBlockOcclusionMaxBlocks);
+        float volumeFactor = (float)Math.Pow(Math.Clamp(config.EntitySoundBlockOcclusionVolumePerBlock, 0f, 1f), occludingBlocks);
+        float lowPass = (float)Math.Pow(Math.Clamp(config.EntitySoundBlockOcclusionLowPassPerBlock, 0f, 1f), occludingBlocks);
+        volumeFactor = Math.Clamp(volumeFactor, Math.Clamp(config.EntitySoundBlockOcclusionMinVolumeFactor, 0f, 1f), 1f);
+        lowPass = Math.Clamp(lowPass, Math.Clamp(config.EntitySoundBlockOcclusionMinLowPass, 0f, 1f), 1f);
+
+        tracked.Sound.SetVolume(tracked.BaseVolume * volumeFactor);
+        tracked.Sound.SetLowPassfiltering(lowPass);
+    }
+
+    private static void RecordOcclusionDebugRay(Vec3f from, Vec3f to, int occludingBlocks, int maxBlocks)
+    {
+        if (!SurroundSoundLabConfigManager.Current.ShowEntitySoundOcclusionDebugRays)
+        {
+            return;
+        }
+
+        lock (SyncRoot)
+        {
+            long nowMs = capi?.ElapsedMilliseconds ?? 0;
+            OcclusionDebugRays.RemoveAll(ray => ray.ExpiresMs <= nowMs);
+            OcclusionDebugRays.Add(new EntitySoundOcclusionDebugRay(
+                new Vec3d(from.X, from.Y, from.Z),
+                new Vec3d(to.X, to.Y, to.Z),
+                occludingBlocks,
+                maxBlocks,
+                nowMs + 6000
+            ));
+
+            while (OcclusionDebugRays.Count > 128)
+            {
+                OcclusionDebugRays.RemoveAt(0);
+            }
+        }
+    }
+
+    private static int CountOpaqueBlocksBetween(Vec3f from, Vec3f to, int maxBlocks)
+    {
+        if (maxBlocks <= 0 || capi?.World?.BlockAccessor == null)
+        {
+            return 0;
+        }
+
+        float dx = to.X - from.X;
+        float dy = to.Y - from.Y;
+        float dz = to.Z - from.Z;
+        float distance = (float)Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
+        if (distance < 1f)
+        {
+            return 0;
+        }
+
+        const float stepLength = 0.75f;
+        int steps = Math.Max(1, (int)Math.Ceiling(distance / stepLength));
+        int count = 0;
+        int lastX = int.MinValue;
+        int lastY = int.MinValue;
+        int lastZ = int.MinValue;
+
+        for (int i = 1; i < steps; i++)
+        {
+            float t = i / (float)steps;
+            int x = (int)Math.Floor(from.X + (dx * t));
+            int y = (int)Math.Floor(from.Y + (dy * t));
+            int z = (int)Math.Floor(from.Z + (dz * t));
+            if (x == lastX && y == lastY && z == lastZ)
+            {
+                continue;
+            }
+
+            lastX = x;
+            lastY = y;
+            lastZ = z;
+
+            Block block = capi.World.BlockAccessor.GetBlock(new BlockPos(x, y, z));
+            if (!IsSoundOccludingBlock(block))
+            {
+                continue;
+            }
+
+            count++;
+            if (count >= maxBlocks)
+            {
+                return count;
+            }
+        }
+
+        return count;
+    }
+
+    private static bool IsSoundOccludingBlock(Block block)
+    {
+        if (block == null || block.BlockMaterial == EnumBlockMaterial.Air)
+        {
+            return false;
+        }
+
+        return block.AllSidesOpaque || block.LightAbsorption >= 24;
+    }
+
     private static float Distance(Vec3f first, Vec3f second)
     {
         float dx = first.X - second.X;
@@ -300,12 +446,13 @@ internal static class EntitySoundPosTrackingController
 
     private sealed class TrackedEntitySound
     {
-        public TrackedEntitySound(ILoadedSound sound, EntitySoundPosTrackingMetadata metadata, float basePitch, float currentPitch, float smoothedDistance, Vec3f lastSoundPosition, Vec3f lastListenerPosition, long lastUpdateMs)
+        public TrackedEntitySound(ILoadedSound sound, EntitySoundPosTrackingMetadata metadata, float basePitch, float currentPitch, float baseVolume, float smoothedDistance, Vec3f lastSoundPosition, Vec3f lastListenerPosition, long lastUpdateMs)
         {
             Sound = sound;
             Metadata = metadata;
             BasePitch = basePitch;
             CurrentPitch = currentPitch;
+            BaseVolume = baseVolume;
             SmoothedDistance = smoothedDistance;
             LastSoundPosition = lastSoundPosition;
             LastListenerPosition = lastListenerPosition;
@@ -316,6 +463,7 @@ internal static class EntitySoundPosTrackingController
         public EntitySoundPosTrackingMetadata Metadata { get; }
         public float BasePitch { get; }
         public float CurrentPitch { get; set; }
+        public float BaseVolume { get; }
         public float SmoothedDistance { get; set; }
         public float SmoothedClosingSpeed { get; set; }
         public Vec3f LastSoundPosition { get; private set; }
@@ -330,6 +478,8 @@ internal static class EntitySoundPosTrackingController
         }
     }
 }
+
+internal readonly record struct EntitySoundOcclusionDebugRay(Vec3d From, Vec3d To, int OccludingBlocks, int MaxBlocks, long ExpiresMs);
 
 internal sealed class EntitySoundPosTrackingMetadata
 {
@@ -478,7 +628,8 @@ internal static class EntitySoundPosTrackingPlayback
             return 0;
         }
 
-        if (game.Player?.Entity?.Pos != null && game.Player.Entity.Pos.SquareDistanceTo(x, y, z) > range * range)
+        float scaledRange = SoundRangeFalloff.ScaleRange(range);
+        if (game.Player?.Entity?.Pos != null && game.Player.Entity.Pos.SquareDistanceTo(x, y, z) > scaledRange * scaledRange)
         {
             return 0;
         }
@@ -487,7 +638,7 @@ internal static class EntitySoundPosTrackingPlayback
         {
             Position = new Vec3f((float)x, (float)y, (float)z),
             RelativePosition = false,
-            Range = range,
+            Range = scaledRange,
             SoundType = soundType,
             Pitch = pitch
         };

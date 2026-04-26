@@ -10,12 +10,12 @@ namespace SurroundSoundLab;
 
 internal sealed class LeafRustleEmitterSystem : IDisposable
 {
-    private const long LeafEmitterLifetimeMs = 10000;
-    private const long LeafVoiceLifetimeMs = 10750;
-    private const int MaxActiveLeafEmitters = 100;
+    private const long LeafEmitterLifetimeMs = 4500;
+    private const long LeafVoiceLifetimeMs = 5250;
+    private const int MaxActiveLeafEmitters = 72;
     private const int MaxActiveEmittersPerPool = 25;
     private const int MaxConcurrentLeafVoices = 75;
-    private const long DiscoveryRefreshMs = 750;
+    private const long DiscoveryRefreshMs = 450;
     private const int PlaybackTickMs = 150;
     private const double ImmediateRingMaxDistance = 2.0;
     private const double NearRingMaxDistance = 5.0;
@@ -23,7 +23,12 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
     private const double FarRingMaxDistance = 52.0;
     private const double AheadPreloadDistance = 25.0;
     private const double AheadPreloadRadius = 16.0;
-    private const double MovementRefreshDistance = 2.5;
+    private const double GazePreloadDistance = 28.0;
+    private const double GazePreloadRadius = 6.0;
+    private const double GazePreloadCorridorRadius = 3.0;
+    private const double ActiveEmitterKeepDistance = 40.0;
+    private const double BehindEmitterCullDistance = 24.0;
+    private const double MovementRefreshDistance = 1.4;
     private const int DiscoveryHorizontalRadius = 20;
     private const int DiscoveryVerticalRadius = 10;
     private const double MaxScanDistanceSq = FarRingMaxDistance * FarRingMaxDistance;
@@ -60,6 +65,8 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
     private long lastDiscoveryRefreshMs;
     private Vec3d lastDiscoveryCenter = new();
     private bool hasDiscoveryCenter;
+    private LeafRustleDebugRegions lastDebugRegions;
+    private bool hasDebugRegions;
     private float cachedWindExposure;
     private float cachedLeafFactor;
     private int cachedNearCount;
@@ -126,6 +133,12 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
     public float GetCurrentBrightSampleProbability()
     {
         return 1f - GetCurrentSoftSampleProbability();
+    }
+
+    public bool TryGetDebugRegions(out LeafRustleDebugRegions regions)
+    {
+        regions = lastDebugRegions;
+        return hasDebugRegions;
     }
 
     private void OnGameTick(float deltaTime)
@@ -234,20 +247,50 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
             playerPos.Y,
             playerPos.Z + (facing.FacingNormZ * AheadPreloadDistance)
         );
+        Vec3d viewVector = GetViewVector(playerPos);
+        Vec3d eyePosition = new(playerPos.X, playerPos.Y + 1.6, playerPos.Z);
+        Vec3d gazePreloadCenter = new(
+            eyePosition.X + (viewVector.X * GazePreloadDistance),
+            eyePosition.Y + (viewVector.Y * GazePreloadDistance),
+            eyePosition.Z + (viewVector.Z * GazePreloadDistance)
+        );
 
         int baseX = (int)Math.Floor(facing.IsMoving ? ((playerPos.X * 0.45) + (lookAheadCenter.X * 0.55)) : playerPos.X);
         int baseY = (int)Math.Floor(playerPos.Y);
         int baseZ = (int)Math.Floor(facing.IsMoving ? ((playerPos.Z * 0.45) + (lookAheadCenter.Z * 0.55)) : playerPos.Z);
+        lastDebugRegions = new LeafRustleDebugRegions(
+            new Vec3d(playerPos.X, playerPos.Y, playerPos.Z),
+            new Vec3d(baseX + 0.5, playerPos.Y, baseZ + 0.5),
+            lookAheadCenter,
+            aheadPreloadCenter,
+            gazePreloadCenter,
+            DiscoveryHorizontalRadius,
+            42.0,
+            AheadPreloadRadius,
+            GazePreloadRadius,
+            GazePreloadCorridorRadius,
+            facing.IsMoving,
+            facing.FacingNormX,
+            facing.FacingNormZ,
+            viewVector.X,
+            viewVector.Y,
+            viewVector.Z
+        );
+        hasDebugRegions = true;
 
-        for (int dx = -DiscoveryHorizontalRadius; dx <= DiscoveryHorizontalRadius; dx++)
+        int minX = Math.Min(baseX - DiscoveryHorizontalRadius, (int)Math.Floor(gazePreloadCenter.X - GazePreloadRadius));
+        int maxX = Math.Max(baseX + DiscoveryHorizontalRadius, (int)Math.Ceiling(gazePreloadCenter.X + GazePreloadRadius));
+        int minY = Math.Min(baseY - DiscoveryVerticalRadius, (int)Math.Floor(gazePreloadCenter.Y - GazePreloadRadius));
+        int maxY = Math.Max(baseY + DiscoveryVerticalRadius, (int)Math.Ceiling(gazePreloadCenter.Y + GazePreloadRadius));
+        int minZ = Math.Min(baseZ - DiscoveryHorizontalRadius, (int)Math.Floor(gazePreloadCenter.Z - GazePreloadRadius));
+        int maxZ = Math.Max(baseZ + DiscoveryHorizontalRadius, (int)Math.Ceiling(gazePreloadCenter.Z + GazePreloadRadius));
+
+        for (int x = minX; x <= maxX; x++)
         {
-            for (int dy = -DiscoveryVerticalRadius; dy <= DiscoveryVerticalRadius; dy++)
+            for (int y = minY; y <= maxY; y++)
             {
-                for (int dz = -DiscoveryHorizontalRadius; dz <= DiscoveryHorizontalRadius; dz++)
+                for (int z = minZ; z <= maxZ; z++)
                 {
-                    int x = baseX + dx;
-                    int y = baseY + dy;
-                    int z = baseZ + dz;
                     var pos = new BlockPos(x, y, z);
                     Block block = blockAccessor.GetBlock(pos);
                     if (!IsRustleEligibleBlock(block))
@@ -289,27 +332,29 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
                     double preloadRelX = centerX - aheadPreloadCenter.X;
                     double preloadRelZ = centerZ - aheadPreloadCenter.Z;
                     double preloadDistanceSq = (preloadRelX * preloadRelX) + (preloadRelZ * preloadRelZ);
+                    bool isGazePreloadCandidate = IsInGazePreloadRegion(eyePosition, viewVector, centerX, centerY, centerZ);
 
                     double horizontalDistance = Math.Sqrt(horizontalDistanceSq);
                     double facingScore = facing.IsMoving ? (((relX * facing.FacingNormX) + (relZ * facing.FacingNormZ) + 1.0) * 0.5) : 0.5;
                     double lookAheadScore = facing.IsMoving ? Math.Max(0.0, 1.0 - (Math.Sqrt(aheadDistanceSq) / 42.0)) : 0.5;
+                    double gazeScore = isGazePreloadCandidate ? GetGazeScore(eyePosition, viewVector, centerX, centerY, centerZ) : 0.0;
                     double distanceScore = horizontalDistance <= 2.4
                         ? 0.95 - (horizontalDistance * 0.08)
                         : 0.9 - ((horizontalDistance - 2.4) / 49.6);
 
                     double verticalOffset = centerY - playerPos.Y;
                     double targetVerticalOffset = horizontalDistance <= ImmediateRingMaxDistance ? -0.25 : 0.35;
-                    double heightPenalty = Math.Abs(verticalOffset - targetVerticalOffset);
+                    double heightPenalty = isGazePreloadCandidate ? 0.0 : Math.Abs(verticalOffset - targetVerticalOffset);
                     double belowBonus = verticalOffset < 0 ? Math.Min(0.08, Math.Abs(verticalOffset) * 0.03) : 0;
                     double aboveBonus = verticalOffset > 0.75 ? Math.Min(0.16, (verticalOffset - 0.75) * 0.035) : 0;
-                    double score = (distanceScore * 0.42) + (facingScore * 0.18) + (lookAheadScore * 0.28) + belowBonus + aboveBonus - (heightPenalty * 0.025);
+                    double score = (distanceScore * 0.46) + (facingScore * 0.12) + (lookAheadScore * 0.18) + (gazeScore * 0.14) + belowBonus + aboveBonus - (heightPenalty * 0.025);
                     if (score <= 0.1)
                     {
                         continue;
                     }
 
                     bool isReedLike = IsReedLikeBlock(block);
-                    var candidate = new CandidateLeafBlock(pos, score, isReedLike);
+                    var candidate = new CandidateLeafBlock(pos, score, isReedLike, isGazePreloadCandidate);
 
                     if (horizontalDistance <= ImmediateRingMaxDistance)
                     {
@@ -323,10 +368,10 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
                     {
                         midCandidates.Add(candidate);
                     }
-                    else if (!facing.IsMoving || preloadDistanceSq <= AheadPreloadRadius * AheadPreloadRadius)
+                    else if (!facing.IsMoving || preloadDistanceSq <= AheadPreloadRadius * AheadPreloadRadius || isGazePreloadCandidate)
                     {
                         double preloadScore = facing.IsMoving ? Math.Max(0.0, 1.0 - (Math.Sqrt(preloadDistanceSq) / AheadPreloadRadius)) : 0.5;
-                        farCandidates.Add(candidate with { Score = score + (preloadScore * 0.25) });
+                        farCandidates.Add(candidate with { Score = score + (preloadScore * 0.15) + (gazeScore * 0.12) });
                     }
                 }
             }
@@ -358,37 +403,37 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
 
         var activeCounts = GetActiveCountsByRing(nowMs);
         int immediateCapacity = Math.Max(0, MaxActiveEmittersPerPool - activeCounts[LeafRustleEmitterRing.Immediate]);
-        int immediateTarget = Math.Min(immediateCandidates.Count, Math.Min(Math.Min(slotsRemaining, immediateCapacity), 6));
-        emitted += EmitRandomFromPool(immediateCandidates, immediateTarget, nowMs, windExposure, roomLoss, cachedLeafFactor, usedKeys, LeafRustleEmitterRing.Immediate);
-        slotsRemaining = Math.Max(0, MaxActiveLeafEmitters - (activeLeafEmitters.Count + emitted));
+        int immediateTarget = Math.Min(immediateCandidates.Count, Math.Min(Math.Min(slotsRemaining, immediateCapacity), 4));
+        emitted += EmitDistributedFromPool(immediateCandidates, immediateTarget, playerPos, facing, nowMs, windExposure, roomLoss, cachedLeafFactor, usedKeys, LeafRustleEmitterRing.Immediate);
+        slotsRemaining = Math.Max(0, MaxActiveLeafEmitters - activeLeafEmitters.Count);
 
         if (slotsRemaining > 0)
         {
             int nearCapacity = Math.Max(0, MaxActiveEmittersPerPool - activeCounts[LeafRustleEmitterRing.Near]);
-            int nearTarget = Math.Min(Math.Min(slotsRemaining, nearCapacity), Math.Clamp(1 + (windExposure >= 0.7f ? 1 : 0), 0, 2));
-            emitted += EmitRandomFromPool(nearCandidates, nearTarget, nowMs, windExposure, roomLoss, cachedLeafFactor, usedKeys, LeafRustleEmitterRing.Near);
-            slotsRemaining = Math.Max(0, MaxActiveLeafEmitters - (activeLeafEmitters.Count + emitted));
+            int nearTarget = Math.Min(Math.Min(slotsRemaining, nearCapacity), Math.Clamp(2 + (windExposure >= 0.7f ? 1 : 0), 0, 3));
+            emitted += EmitDistributedFromPool(nearCandidates, nearTarget, playerPos, facing, nowMs, windExposure, roomLoss, cachedLeafFactor, usedKeys, LeafRustleEmitterRing.Near);
+            slotsRemaining = Math.Max(0, MaxActiveLeafEmitters - activeLeafEmitters.Count);
         }
 
         if (slotsRemaining > 0)
         {
             int midCapacity = Math.Max(0, MaxActiveEmittersPerPool - activeCounts[LeafRustleEmitterRing.Mid]);
-            int midTarget = Math.Min(Math.Min(slotsRemaining, midCapacity), Math.Clamp(1 + (windExposure >= 0.85f ? 1 : 0), 0, 2));
-            emitted += EmitRandomFromPool(midCandidates, midTarget, nowMs, windExposure, roomLoss, cachedLeafFactor, usedKeys, LeafRustleEmitterRing.Mid);
-            slotsRemaining = Math.Max(0, MaxActiveLeafEmitters - (activeLeafEmitters.Count + emitted));
+            int midTarget = Math.Min(Math.Min(slotsRemaining, midCapacity), Math.Clamp(2 + (windExposure >= 0.85f ? 1 : 0), 0, 3));
+            emitted += EmitDistributedFromPool(midCandidates, midTarget, playerPos, facing, nowMs, windExposure, roomLoss, cachedLeafFactor, usedKeys, LeafRustleEmitterRing.Mid);
+            slotsRemaining = Math.Max(0, MaxActiveLeafEmitters - activeLeafEmitters.Count);
         }
 
         if (slotsRemaining > 0)
         {
             int farCapacity = Math.Max(0, MaxActiveEmittersPerPool - activeCounts[LeafRustleEmitterRing.Far]);
             int farTarget = Math.Min(Math.Min(slotsRemaining, farCapacity), Math.Clamp(1 + (windExposure >= 0.9f ? 1 : 0), 0, 2));
-            emitted += EmitRandomFromPool(farCandidates, farTarget, nowMs, windExposure, roomLoss, cachedLeafFactor, usedKeys, LeafRustleEmitterRing.Far);
+            emitted += EmitDistributedFromPool(farCandidates, farTarget, playerPos, facing, nowMs, windExposure, roomLoss, cachedLeafFactor, usedKeys, LeafRustleEmitterRing.Far);
         }
 
         return emitted > 0;
     }
 
-    private int EmitRandomFromPool(List<CandidateLeafBlock> sourcePool, int targetCount, long nowMs, float windExposure, float roomLoss, float leafFactor, HashSet<long> usedKeys, LeafRustleEmitterRing ring)
+    private int EmitDistributedFromPool(List<CandidateLeafBlock> sourcePool, int targetCount, EntityPos playerPos, FacingContext facing, long nowMs, float windExposure, float roomLoss, float leafFactor, HashSet<long> usedKeys, LeafRustleEmitterRing ring)
     {
         if (targetCount <= 0 || sourcePool.Count == 0)
         {
@@ -396,20 +441,86 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
         }
 
         int emitted = 0;
-        int attempts = 0;
-        int maxAttempts = Math.Max(targetCount * 4, 12);
+        var buckets = BuildDirectionalBuckets(sourcePool, playerPos, facing);
+        int bucketIndex = 0;
+        int stalledBuckets = 0;
 
-        while (emitted < targetCount && attempts < maxAttempts)
+        while (emitted < targetCount && stalledBuckets < buckets.Length)
         {
-            attempts++;
-            CandidateLeafBlock choice = sourcePool[random.Next(sourcePool.Count)];
-            if (TryEmitSpecific(choice, nowMs, windExposure, roomLoss, leafFactor, usedKeys, ring))
+            List<CandidateLeafBlock> bucket = buckets[bucketIndex];
+            if (bucket.Count == 0)
             {
-                emitted++;
+                stalledBuckets++;
             }
+            else
+            {
+                CandidateLeafBlock candidate = bucket[random.Next(bucket.Count)];
+                bucket.Remove(candidate);
+                if (TryEmitSpecific(candidate, nowMs, windExposure, roomLoss, leafFactor, usedKeys, ring))
+                {
+                    emitted++;
+                    stalledBuckets = 0;
+                }
+            }
+
+            bucketIndex = (bucketIndex + 1) % buckets.Length;
         }
 
         return emitted;
+    }
+
+    private static List<CandidateLeafBlock>[] BuildDirectionalBuckets(List<CandidateLeafBlock> sourcePool, EntityPos playerPos, FacingContext facing)
+    {
+        var buckets = new[]
+        {
+            new List<CandidateLeafBlock>(),
+            new List<CandidateLeafBlock>(),
+            new List<CandidateLeafBlock>(),
+            new List<CandidateLeafBlock>()
+        };
+
+        foreach (CandidateLeafBlock candidate in sourcePool)
+        {
+            double cx = candidate.Pos.X + 0.5;
+            double cz = candidate.Pos.Z + 0.5;
+            double relX = cx - playerPos.X;
+            double relZ = cz - playerPos.Z;
+            double forward = (relX * facing.FacingNormX) + (relZ * facing.FacingNormZ);
+            double side = (relX * -facing.FacingNormZ) + (relZ * facing.FacingNormX);
+
+            if (forward > Math.Abs(side) * 0.65)
+            {
+                buckets[0].Add(candidate);
+            }
+            else if (forward < -Math.Abs(side) * 0.4)
+            {
+                buckets[3].Add(candidate);
+            }
+            else if (side < 0)
+            {
+                buckets[1].Add(candidate);
+            }
+            else if (side > 0)
+            {
+                buckets[2].Add(candidate);
+            }
+            else
+            {
+                buckets[3].Add(candidate);
+            }
+        }
+
+        foreach (List<CandidateLeafBlock> bucket in buckets)
+        {
+            bucket.Sort((left, right) => right.Score.CompareTo(left.Score));
+            int keep = Math.Min(bucket.Count, 36);
+            if (bucket.Count > keep)
+            {
+                bucket.RemoveRange(keep, bucket.Count - keep);
+            }
+        }
+
+        return buckets;
     }
 
     private bool TryEmitSpecific(CandidateLeafBlock candidate, long nowMs, float windExposure, float roomLoss, float leafFactor, HashSet<long> usedKeys, LeafRustleEmitterRing ring)
@@ -497,7 +608,10 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
             double aheadZ = cz - lookAheadCenter.Z;
             double lookAheadDistanceSq = (aheadX * aheadX) + (aheadY * aheadY) + (aheadZ * aheadZ);
 
-            if (playerDistanceSq > 26.0 * 26.0 && (!facing.IsMoving || lookAheadDistanceSq > 34.0 * 34.0))
+            bool isBehind = facing.IsMoving && ((relX * facing.FacingNormX) + (relZ * facing.FacingNormZ)) < 0.0;
+            if (playerDistanceSq > ActiveEmitterKeepDistance * ActiveEmitterKeepDistance
+                || (isBehind && playerDistanceSq > BehindEmitterCullDistance * BehindEmitterCullDistance)
+                || (playerDistanceSq > 26.0 * 26.0 && (!facing.IsMoving || lookAheadDistanceSq > 34.0 * 34.0)))
             {
                 expired.Add(pair.Key);
             }
@@ -567,6 +681,7 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
         cachedFarCount = 0;
         cachedLeafFactor = 0f;
         hasDiscoveryCenter = false;
+        hasDebugRegions = false;
     }
 
     private Dictionary<LeafRustleEmitterRing, int> GetActiveCountsByRing(long nowMs)
@@ -617,6 +732,59 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
         GetFacingVector(playerPos, deltaX, deltaZ, isMoving, motionLength, out double facingNormX, out double facingNormZ);
         float movementFactor = GameMath.Clamp((float)(horizontalMovement / 0.2), 0f, 1f);
         return new FacingContext(isMoving, movementFactor, facingNormX, facingNormZ);
+    }
+
+    private static Vec3d GetViewVector(EntityPos playerPos)
+    {
+        Vec3f viewVector = playerPos.GetViewVector();
+        return new Vec3d(viewVector.X, viewVector.Y, viewVector.Z);
+    }
+
+    private static bool IsInGazePreloadRegion(Vec3d eyePosition, Vec3d viewVector, double x, double y, double z)
+    {
+        double relX = x - eyePosition.X;
+        double relY = y - eyePosition.Y;
+        double relZ = z - eyePosition.Z;
+        double distanceAlongRay = (relX * viewVector.X) + (relY * viewVector.Y) + (relZ * viewVector.Z);
+        if (distanceAlongRay <= 0.0 || distanceAlongRay > GazePreloadDistance + GazePreloadRadius)
+        {
+            return false;
+        }
+
+        double closestX = eyePosition.X + (viewVector.X * distanceAlongRay);
+        double closestY = eyePosition.Y + (viewVector.Y * distanceAlongRay);
+        double closestZ = eyePosition.Z + (viewVector.Z * distanceAlongRay);
+        double perpX = x - closestX;
+        double perpY = y - closestY;
+        double perpZ = z - closestZ;
+        double corridorDistanceSq = (perpX * perpX) + (perpY * perpY) + (perpZ * perpZ);
+
+        double targetX = eyePosition.X + (viewVector.X * GazePreloadDistance);
+        double targetY = eyePosition.Y + (viewVector.Y * GazePreloadDistance);
+        double targetZ = eyePosition.Z + (viewVector.Z * GazePreloadDistance);
+        double targetRelX = x - targetX;
+        double targetRelY = y - targetY;
+        double targetRelZ = z - targetZ;
+        double targetDistanceSq = (targetRelX * targetRelX) + (targetRelY * targetRelY) + (targetRelZ * targetRelZ);
+
+        return corridorDistanceSq <= GazePreloadCorridorRadius * GazePreloadCorridorRadius
+            || targetDistanceSq <= GazePreloadRadius * GazePreloadRadius;
+    }
+
+    private static double GetGazeScore(Vec3d eyePosition, Vec3d viewVector, double x, double y, double z)
+    {
+        double relX = x - eyePosition.X;
+        double relY = y - eyePosition.Y;
+        double relZ = z - eyePosition.Z;
+        double distanceAlongRay = Math.Max(0.0, (relX * viewVector.X) + (relY * viewVector.Y) + (relZ * viewVector.Z));
+        double closestX = eyePosition.X + (viewVector.X * distanceAlongRay);
+        double closestY = eyePosition.Y + (viewVector.Y * distanceAlongRay);
+        double closestZ = eyePosition.Z + (viewVector.Z * distanceAlongRay);
+        double perpX = x - closestX;
+        double perpY = y - closestY;
+        double perpZ = z - closestZ;
+        double corridorDistance = Math.Sqrt((perpX * perpX) + (perpY * perpY) + (perpZ * perpZ));
+        return Math.Max(0.0, 1.0 - (corridorDistance / GazePreloadCorridorRadius));
     }
 
     private float GetWindExposure(Vec3d pos)
@@ -729,7 +897,7 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
         }
     }
 
-    private readonly record struct CandidateLeafBlock(BlockPos Pos, double Score, bool IsReedLike);
+    private readonly record struct CandidateLeafBlock(BlockPos Pos, double Score, bool IsReedLike, bool IsGazeCandidate);
     private readonly record struct ActiveLeafEmitterState(long ExpiresMs, LeafRustleEmitterRing Ring);
     private readonly record struct ActiveLeafVoice(long ExpiresMs, LeafRustleEmitterRing Ring);
     private readonly record struct FacingContext(bool IsMoving, float MovementFactor, double FacingNormX, double FacingNormZ);
@@ -752,3 +920,21 @@ internal enum LeafRustleEmitterRing
 }
 
 internal readonly record struct LeafRustleEmitterVisual(Vec3d Position, long ExpiresMs, LeafRustleEmitterRing Ring, float Volume);
+internal readonly record struct LeafRustleDebugRegions(
+    Vec3d PlayerPosition,
+    Vec3d DiscoveryCenter,
+    Vec3d LookAheadCenter,
+    Vec3d AheadPreloadCenter,
+    Vec3d GazePreloadCenter,
+    double DiscoveryHalfSize,
+    double LookAheadRadius,
+    double AheadPreloadRadius,
+    double GazePreloadRadius,
+    double GazePreloadCorridorRadius,
+    bool IsMoving,
+    double FacingNormX,
+    double FacingNormZ,
+    double ViewNormX,
+    double ViewNormY,
+    double ViewNormZ
+);
