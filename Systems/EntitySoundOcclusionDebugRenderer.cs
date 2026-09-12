@@ -20,7 +20,7 @@ internal sealed class EntitySoundOcclusionDebugRenderer : IRenderer
 
     public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
     {
-        if (!SurroundSoundLabConfigManager.Current.ShowEntitySoundOcclusionDebugRays || stage != EnumRenderStage.Opaque)
+        if (!SurroundSoundLabConfigManager.Current.EffectiveShowEntitySoundOcclusionDebugRays || stage != EnumRenderStage.Opaque)
         {
             return;
         }

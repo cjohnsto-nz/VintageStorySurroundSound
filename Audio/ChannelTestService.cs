@@ -116,6 +116,82 @@ internal sealed class ChannelTestService : IDisposable
         return SoundAuditSummaryCollector.WriteCurrentSummary();
     }
 
+    public bool TryPlaySpatialTest(SpatialTestPosition target, out string message)
+    {
+        ALContext context = ALC.GetCurrentContext();
+        if (context == ALContext.Null)
+        {
+            message = "No game audio context is active.";
+            return false;
+        }
+        StopSpatialTests();
+        int source = 0, buffer = 0;
+        var result = new AudioTestResult
+        {
+            TestId = Guid.NewGuid().ToString("N"), TimestampUtc = DateTime.UtcNow,
+            ContextType = AudioTestContextType.GameContext, FormatKey = "mono16",
+            FormatEnumName = "AL_FORMAT_MONO16", FormatEnumValue = (int)ALFormat.Mono16,
+            Channels = 1, ChannelIndex = 0, SpatialTest = target.ToString()
+        };
+        try
+        {
+            var origin = AL.GetListener(ALListener3f.Position);
+            AL.GetListener(ALListenerfv.Orientation, out OpenTK.Mathematics.Vector3 forward, out _);
+            var listener = new System.Numerics.Vector3(origin.X, origin.Y, origin.Z);
+            var direction = new System.Numerics.Vector3(forward.X, forward.Y, forward.Z);
+            var position = SpatialTestSignal.WorldPosition(target, listener, direction);
+            result.WorldPosition = new[] { position.X, position.Y, position.Z };
+            result.DeviceName = SafeDeviceName(ALC.GetContextsDevice(context), null);
+            source = AL.GenSource();
+            buffer = AL.GenBuffer();
+            AL.BufferData(buffer, ALFormat.Mono16, SpatialTestSignal.BuildSamples(), SpatialTestSignal.SampleRate);
+            AL.Source(source, ALSourcei.Buffer, buffer);
+            AL.Source(source, ALSourceb.SourceRelative, false);
+            AL.Source(source, ALSourcef.RolloffFactor, 0);
+            AL.Source(source, ALSource3f.Position, position.X, position.Y, position.Z);
+            AL.SourcePlay(source);
+            result.AlError = ReadAlError();
+            result.Success = result.AlError == null;
+            result.StartedPlayback = result.Success;
+            result.ErrorMessage = result.AlError;
+            if (result.Success)
+            {
+                lock (syncRoot)
+                    pendingGameContextSounds.Add(new PendingGameContextSound
+                    {
+                        Source = source, Buffer = buffer, IsSpatialTest = true,
+                        CleanupAfterUtc = DateTime.UtcNow.AddSeconds(SpatialTestSignal.DurationSeconds + 0.2),
+                        StartedAtUtc = DateTime.UtcNow, Target = target, Origin = listener, Forward = direction
+                    });
+                source = buffer = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            result.ErrorMessage = ex.Message;
+            result.Success = false;
+        }
+        finally { CleanupSource(source, buffer); }
+        PublishResult(result);
+        message = result.Success ? $"{target}: 8 seconds of world-positioned noise. Look around to check direction." : result.ErrorMessage;
+        return result.Success;
+    }
+
+    public void StopSpatialTests()
+    {
+        lock (syncRoot)
+        {
+            for (int i = pendingGameContextSounds.Count - 1; i >= 0; i--)
+            {
+                var sound = pendingGameContextSounds[i];
+                if (!sound.IsSpatialTest) continue;
+                if (sound.Context == ALC.GetCurrentContext() && sound.Generation == AudioOpenAlInitContextPatch.ContextGeneration)
+                    CleanupSource(sound.Source, sound.Buffer);
+                pendingGameContextSounds.RemoveAt(i);
+            }
+        }
+    }
+
     private bool TryPlayUsingGameContext(string formatKey, int activeChannelIndex, out string message)
     {
         if (!TryResolveFormat(formatKey, out var formatInfo, out message))
@@ -505,6 +581,20 @@ internal sealed class ChannelTestService : IDisposable
         {
             for (int i = pendingGameContextSounds.Count - 1; i >= 0; i--)
             {
+                var sound = pendingGameContextSounds[i];
+                // Recreating the device destroys these handles. IDs may have
+                // already been reused by unrelated sounds in the new context.
+                if (sound.Context != ALC.GetCurrentContext() || sound.Generation != AudioOpenAlInitContextPatch.ContextGeneration)
+                {
+                    pendingGameContextSounds.RemoveAt(i);
+                    continue;
+                }
+                if (sound.IsSpatialTest && sound.Target == SpatialTestPosition.VerticalSweep)
+                {
+                    float progress = (float)(DateTime.UtcNow - sound.StartedAtUtc).TotalSeconds / SpatialTestSignal.DurationSeconds;
+                    var position = SpatialTestSignal.WorldPosition(sound.Target, sound.Origin, sound.Forward, progress);
+                    AL.Source(sound.Source, ALSource3f.Position, position.X, position.Y, position.Z);
+                }
                 if (pendingGameContextSounds[i].CleanupAfterUtc > DateTime.UtcNow) continue;
                 expired ??= new List<PendingGameContextSound>();
                 expired.Add(pendingGameContextSounds[i]);
@@ -653,7 +743,8 @@ internal sealed class ChannelTestService : IDisposable
         {
             foreach (var sound in pendingGameContextSounds)
             {
-                CleanupSource(sound.Source, sound.Buffer);
+                if (sound.Context == ALC.GetCurrentContext() && sound.Generation == AudioOpenAlInitContextPatch.ContextGeneration)
+                    CleanupSource(sound.Source, sound.Buffer);
             }
 
             pendingGameContextSounds.Clear();
@@ -694,6 +785,13 @@ internal sealed class ChannelTestService : IDisposable
 
     private sealed class PendingGameContextSound
     {
+        public ALContext Context { get; init; } = ALC.GetCurrentContext();
+        public int Generation { get; init; } = AudioOpenAlInitContextPatch.ContextGeneration;
+        public bool IsSpatialTest { get; init; }
+        public SpatialTestPosition Target { get; init; }
+        public System.Numerics.Vector3 Origin { get; init; }
+        public System.Numerics.Vector3 Forward { get; init; }
+        public DateTime StartedAtUtc { get; init; }
         public int Source { get; set; }
         public int Buffer { get; set; }
         public DateTime CleanupAfterUtc { get; set; }

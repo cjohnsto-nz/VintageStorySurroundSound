@@ -29,6 +29,8 @@ internal sealed class AudioTestResult
     public string AlError { get; set; }
     public string AlcError { get; set; }
     public string SpeakerObserved { get; set; }
+    public string SpatialTest { get; set; }
+    public float[] WorldPosition { get; set; }
 }
 
 internal sealed class LabContextProbeResult

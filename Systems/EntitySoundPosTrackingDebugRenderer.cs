@@ -20,7 +20,7 @@ internal sealed class EntitySoundPosTrackingDebugRenderer : IRenderer
 
     public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
     {
-        if (!SurroundSoundLabConfigManager.Current.ShowEntitySoundPosTrackingDebugVisuals || stage != EnumRenderStage.Opaque)
+        if (!SurroundSoundLabConfigManager.Current.EffectiveShowEntitySoundPosTrackingDebugVisuals || stage != EnumRenderStage.Opaque)
         {
             return;
         }

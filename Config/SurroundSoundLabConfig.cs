@@ -4,23 +4,13 @@ using Vintagestory.API.Common;
 
 namespace SurroundSoundLab;
 
-public enum SurroundOutputMode
-{
-    Auto,
-    StereoBasic,
-    Stereo,
-    StereoHrtf,
-    Quad,
-    Surround5Point1,
-    Surround6Point1,
-    Surround7Point1
-}
-
 public sealed class SurroundSoundLabConfig
 {
+    public bool LiteMode { get; set; } = false;
     public bool EnableDebugTools { get; set; } = false;
     public SurroundOutputMode OutputMode { get; set; } = SurroundOutputMode.Auto;
     public float ListenerBackwardOffset { get; set; } = 0.5f;
+    public bool FollowCameraPitch { get; set; } = true;
     public bool UpmixStereoToSurround { get; set; } = true;
     public float StereoUpmixGainDb { get; set; } = -6f;
     public bool ReplaceVanillaWeatherBeds { get; set; } = true;
@@ -42,6 +32,7 @@ public sealed class SurroundSoundLabConfig
         "helvehammer",
         "hammer"
     ];
+    public string StaticSoundBlockOcclusionSoundWhitelistText { get; set; } = "water, anvil, quern, pulverizer, helvehammer, hammer";
     public int EntitySoundBlockOcclusionMaxBlocks { get; set; } = 8;
     public int EntitySoundBlockOcclusionRefreshMs { get; set; } = 500;
     public float EntitySoundBlockOcclusionMinDistance { get; set; } = 2f;
@@ -69,6 +60,17 @@ public sealed class SurroundSoundLabConfig
     public bool ShowLeafRustleDebugVisuals { get; set; } = false;
     public bool ShowRainEmitterDebugVisuals { get; set; } = false;
     public bool EnableSoundAudit { get; set; } = false;
+
+    public bool EffectiveEnableExperimentalLeafRustleEmitters => !LiteMode && EnableExperimentalLeafRustleEmitters;
+    public bool EffectiveEnableExperimentalRainEmitters => !LiteMode && EnableExperimentalRainEmitters;
+    public bool EffectiveEnableEntitySoundPosTracking => !LiteMode && EnableEntitySoundPosTracking;
+    public bool EffectiveEnableEntitySoundPosTrackingInference => !LiteMode && EnableEntitySoundPosTracking && EnableEntitySoundPosTrackingInference;
+    public bool EffectiveEnableEntitySoundBlockOcclusion => !LiteMode && EnableEntitySoundBlockOcclusion;
+    public bool EffectiveEnableStaticSoundBlockOcclusion => !LiteMode && EnableStaticSoundBlockOcclusion;
+    public bool EffectiveShowEntitySoundOcclusionDebugRays => !LiteMode && ShowEntitySoundOcclusionDebugRays;
+    public bool EffectiveShowEntitySoundPosTrackingDebugVisuals => !LiteMode && ShowEntitySoundPosTrackingDebugVisuals;
+    public bool EffectiveShowLeafRustleDebugVisuals => !LiteMode && ShowLeafRustleDebugVisuals;
+    public bool EffectiveShowRainEmitterDebugVisuals => !LiteMode && ShowRainEmitterDebugVisuals;
 }
 
 internal static class SurroundSoundLabConfigManager
@@ -98,18 +100,22 @@ internal static class SurroundSoundLabConfigManager
 
     private static void Normalize(SurroundSoundLabConfig config)
     {
+        List<string> fallback =
+        [
+            "water",
+            "anvil",
+            "quern",
+            "pulverizer",
+            "helvehammer",
+            "hammer"
+        ];
+
+        List<string> parsedWhitelist = ParseWhitelistText(config.StaticSoundBlockOcclusionSoundWhitelistText);
         config.StaticSoundBlockOcclusionSoundWhitelist = DeduplicateList(
-            config.StaticSoundBlockOcclusionSoundWhitelist,
-            new List<string>
-            {
-                "water",
-                "anvil",
-                "quern",
-                "pulverizer",
-                "helvehammer",
-                "hammer"
-            }
+            parsedWhitelist.Count > 0 ? parsedWhitelist : config.StaticSoundBlockOcclusionSoundWhitelist,
+            fallback
         );
+        config.StaticSoundBlockOcclusionSoundWhitelistText = string.Join(", ", config.StaticSoundBlockOcclusionSoundWhitelist);
     }
 
     private static List<string> DeduplicateList(List<string> values, List<string> fallback)
@@ -130,5 +136,16 @@ internal static class SurroundSoundLabConfigManager
         }
 
         return deduplicated;
+    }
+
+    private static List<string> ParseWhitelistText(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        string[] split = value.Split([',', '\n', '\r', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return new List<string>(split);
     }
 }

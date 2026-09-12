@@ -13,15 +13,7 @@ internal static class AudioOpenAlInitContextPatch
 {
     private const int AlcHrtfSoft = 0x1992;
     private const int AlcOutputModeSoft = 0x19AC;
-    private const int AlcFrequency = 0x1007;
     private const int AlcStereoBasicSoft = 0x19AE;
-    private const int AlcStereoSoft = 0x1501;
-    private const int AlcStereoHrtfSoft = 0x19B2;
-    private const int AlcAnySoft = 0x19AD;
-    private const int AlcQuadSoft = 0x1503;
-    private const int Alc5Point1Soft = 0x1504;
-    private const int Alc6Point1Soft = 0x1505;
-    private const int Alc7Point1Soft = 0x1506;
 
     private static readonly AccessTools.FieldRef<AudioOpenAl, ALContext> ContextRef =
         AccessTools.FieldRefAccess<AudioOpenAl, ALContext>("Context");
@@ -31,9 +23,20 @@ internal static class AudioOpenAlInitContextPatch
 
     internal static string LastRequestedOutputMode { get; private set; } = "Stereo (engine default)";
     internal static string LastActualOutputMode { get; private set; } = "Unknown";
+    internal static string LastInitializationFailure { get; private set; }
+    internal static bool SpatialBedRequested { get; private set; }
+    internal static int ContextGeneration { get; private set; }
+    internal static bool HeightStreamStartedAtInitialization { get; private set; }
 
     public static bool Prefix(AudioOpenAl __instance, ILogger logger)
     {
+        LastInitializationFailure = null;
+        LastActualOutputMode = "Unavailable";
+        SpatialBedRequested = false;
+        ContextGeneration++;
+        HeightStreamStartedAtInitialization = false;
+        string nativeLogPath = Environment.GetEnvironmentVariable("ALSOFT_LOGFILE");
+        long nativeLogStart = SpatialNativeLog.Length(nativeLogPath);
         try
         {
             if (DeviceRef(__instance) != ALDevice.Null)
@@ -53,26 +56,49 @@ internal static class AudioOpenAlInitContextPatch
             }
 
             ALDevice device = ALC.OpenDevice(desiredDevice);
+            if (device == ALDevice.Null && desiredDevice != null)
+                device = ALC.OpenDevice(null);
             DeviceRef(__instance) = device;
+            if (device == ALDevice.Null)
+                throw new InvalidOperationException("OpenAL could not open an output device.");
 
             bool allowHrtfSetting = ClientSettings.AllowSettingHRTFAudio;
             bool outputModeExtension = device != ALDevice.Null && ALC.IsExtensionPresent(device, "ALC_SOFT_output_mode");
             SurroundOutputMode requestedMode = SurroundSoundLabConfigManager.Current.OutputMode;
-            bool useHrtf = ShouldUseHrtf(allowHrtfSetting, requestedMode);
+            bool useHrtf = OutputContextPolicy.UseHrtf(requestedMode, allowHrtfSetting);
             AudioOpenAl.UseHrtf = useHrtf;
 
-            int[] attributes = BuildAttributeList(allowHrtfSetting, useHrtf, outputModeExtension, requestedMode);
+            int[] attributes = OutputContextPolicy.Build(requestedMode, allowHrtfSetting, outputModeExtension, ClientSettings.Force48kHzHRTFAudio);
             LastRequestedOutputMode = DescribeRequestedMode(requestedMode, outputModeExtension, useHrtf);
 
             ALContext context = ALC.CreateContext(device, attributes);
+            if (context == ALContext.Null)
+            {
+                string error = ALC.GetError(device).ToString();
+                LastInitializationFailure = $"Requested audio context failed ({error}); retrying stereo output.";
+                logger.Warning("[Surround Sound] " + LastInitializationFailure);
+                context = ALC.CreateContext(device, outputModeExtension
+                    ? new[] { AlcHrtfSoft, 0, AlcOutputModeSoft, AlcStereoBasicSoft, 0 }
+                    : new[] { 0 });
+                AudioOpenAl.UseHrtf = false;
+            }
             ContextRef(__instance) = context;
-            ALC.MakeContextCurrent(context);
+            if (context == ALContext.Null || !ALC.MakeContextCurrent(context))
+                throw new InvalidOperationException("OpenAL could not make an audio context current.");
             AudioOpenAl.CheckALError(logger, "Start");
             AL.Listener((ALListener3f)4102, 0f, 0f, 0f);
             AL.Listener(ALListenerf.Gain, Math.Clamp(ClientSettings.MasterSoundLevel / 100f, 0f, 1f));
 
             ALContextAttributes contextAttributes = ALC.GetContextAttributes(device);
             LastActualOutputMode = AudioOutputModeHelper.ReadCurrentOutputMode(device);
+            HeightStreamStartedAtInitialization = SpatialNativeLog.ReadInitialization(nativeLogPath, nativeLogStart);
+            if (requestedMode == SurroundOutputMode.WindowsSpatialAudio)
+            {
+                SpatialAudioStatus status = SpatialAudioStatus.Capture(AL.Get(ALGetString.Version), true, LastActualOutputMode);
+                SpatialBedRequested = (status.State is "Unverified" or "StreamActive") && LastActualOutputMode == "Any/Auto"
+                    && status.StartupConfigured && status.RuntimeSupported;
+                logger.Notification("[Surround Sound] Spatial audio: {0}. {1}", status.State, status.Detail);
+            }
             logger.Notification(
                 "OpenAL Initialized. Available Mono/Stereo Sources: {0}/{1}",
                 contextAttributes.MonoSources,
@@ -87,6 +113,19 @@ internal static class AudioOpenAlInitContextPatch
         }
         catch (Exception e)
         {
+            LastInitializationFailure = e.Message;
+            AudioOpenAl.UseHrtf = false;
+            if (ContextRef(__instance) != ALContext.Null)
+            {
+                ALC.MakeContextCurrent(ALContext.Null);
+                ALC.DestroyContext(ContextRef(__instance));
+                ContextRef(__instance) = ALContext.Null;
+            }
+            if (DeviceRef(__instance) != ALDevice.Null)
+            {
+                ALC.CloseDevice(DeviceRef(__instance));
+                DeviceRef(__instance) = ALDevice.Null;
+            }
             logger.Error("Failed creating audio context");
             logger.Error(e);
         }
@@ -94,65 +133,10 @@ internal static class AudioOpenAlInitContextPatch
         return false;
     }
 
-    private static int[] BuildAttributeList(bool allowHrtfSetting, bool useHrtf, bool outputModeExtension, SurroundOutputMode requestedMode)
-    {
-        if (!allowHrtfSetting && requestedMode == SurroundOutputMode.StereoHrtf)
-        {
-            requestedMode = SurroundOutputMode.Auto;
-        }
-
-        if (!outputModeExtension)
-        {
-            if (!allowHrtfSetting)
-            {
-                return new[] { 0 };
-            }
-
-            if (!useHrtf)
-            {
-                return new[] { AlcHrtfSoft, 0, 0 };
-            }
-
-            return ClientSettings.Force48kHzHRTFAudio
-                ? new[] { AlcHrtfSoft, 1, AlcFrequency, 48000, 0 }
-                : new[] { AlcHrtfSoft, 1, 0 };
-        }
-
-        int? outputModeValue = requestedMode switch
-        {
-            SurroundOutputMode.Auto => AlcAnySoft,
-            SurroundOutputMode.StereoBasic => AlcStereoBasicSoft,
-            SurroundOutputMode.Stereo => AlcStereoSoft,
-            SurroundOutputMode.StereoHrtf => AlcStereoHrtfSoft,
-            SurroundOutputMode.Quad => AlcQuadSoft,
-            SurroundOutputMode.Surround5Point1 => Alc5Point1Soft,
-            SurroundOutputMode.Surround6Point1 => Alc6Point1Soft,
-            SurroundOutputMode.Surround7Point1 => Alc7Point1Soft,
-            _ => AlcAnySoft
-        };
-
-        if (!useHrtf)
-        {
-            return new[] { AlcHrtfSoft, 0, AlcOutputModeSoft, outputModeValue.Value, 0 };
-        }
-
-        return ClientSettings.Force48kHzHRTFAudio
-            ? new[] { AlcHrtfSoft, 1, AlcOutputModeSoft, outputModeValue.Value, AlcFrequency, 48000, 0 }
-            : new[] { AlcHrtfSoft, 1, AlcOutputModeSoft, outputModeValue.Value, 0 };
-    }
-
-    private static bool ShouldUseHrtf(bool allowHrtfSetting, SurroundOutputMode requestedMode)
-    {
-        if (!allowHrtfSetting)
-        {
-            return false;
-        }
-
-        return requestedMode == SurroundOutputMode.StereoHrtf;
-    }
-
     private static string DescribeRequestedMode(SurroundOutputMode requestedMode, bool outputModeExtension, bool useHrtf)
     {
+        if (requestedMode == SurroundOutputMode.WindowsSpatialAudio)
+            return "Windows Spatial Audio / 7.1.4 (experimental)";
         if (!outputModeExtension)
         {
             return useHrtf ? "Stereo HRTF (fallback)" : "Stereo Basic (fallback)";

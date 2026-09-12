@@ -18,19 +18,24 @@ internal static class AudioCapabilityReportWriter
         ALContext currentContext = ALC.GetCurrentContext();
         ALDevice currentDevice = currentContext != ALContext.Null ? ALC.GetContextsDevice(currentContext) : ALDevice.Null;
         bool hasCurrentContext = currentContext != ALContext.Null && currentDevice != ALDevice.Null;
+        string version = hasCurrentContext ? SafeGet(() => AL.Get(ALGetString.Version)) : null;
+        string actualMode = hasCurrentContext ? AudioOutputModeHelper.ReadCurrentOutputMode(currentDevice) : "Unavailable";
 
         return new AudioCapabilityReport
         {
             CreatedAtUtc = DateTime.UtcNow,
             HasCurrentContext = hasCurrentContext,
             ContextStatus = hasCurrentContext ? "Current OpenAL context available." : "No current OpenAL context is active on this thread.",
-            OpenAlVersion = hasCurrentContext ? SafeGet(() => AL.Get(ALGetString.Version)) : null,
+            OpenAlVersion = version,
             OpenAlVendor = hasCurrentContext ? SafeGet(() => AL.Get(ALGetString.Vendor)) : null,
             OpenAlRenderer = hasCurrentContext ? SafeGet(() => AL.Get(ALGetString.Renderer)) : null,
             PlaybackDevice = hasCurrentContext ? SafeGet(() => ALC.GetString(currentDevice, AlcGetString.DeviceSpecifier)) : null,
             DefaultPlaybackDevice = SafeGet(() => ALC.GetString(ALDevice.Null, (AlcGetString)AlcDefaultAllDevicesSpecifier)),
             RequestedOutputMode = AudioOpenAlInitContextPatch.LastRequestedOutputMode,
-            ActualOutputMode = hasCurrentContext ? AudioOutputModeHelper.ReadCurrentOutputMode(currentDevice) : "Unavailable",
+            ActualOutputMode = actualMode,
+            SpatialAudio = SpatialAudioStatus.Capture(version, hasCurrentContext, actualMode),
+            FollowCameraPitch = SurroundSoundLabConfigManager.Current.FollowCameraPitch,
+            ListenerOrientation = hasCurrentContext ? ReadListenerOrientation() : null,
             PlaybackDevices = ReadPlaybackDevices(),
             AlExtensions = hasCurrentContext ? ReadAlExtensions() : Array.Empty<string>(),
             AlcExtensions = hasCurrentContext ? ReadAlcExtensions(currentDevice) : Array.Empty<string>(),
@@ -80,6 +85,16 @@ internal static class AudioCapabilityReportWriter
         {
             return null;
         }
+    }
+
+    private static float[] ReadListenerOrientation()
+    {
+        try
+        {
+            AL.GetListener(ALListenerfv.Orientation, out OpenTK.Mathematics.Vector3 forward, out OpenTK.Mathematics.Vector3 up);
+            return new[] { forward.X, forward.Y, forward.Z, up.X, up.Y, up.Z };
+        }
+        catch { return null; }
     }
 
     private static string[] ReadAlExtensions()
@@ -196,6 +211,9 @@ internal sealed class AudioCapabilityReport
     public string DefaultPlaybackDevice { get; set; }
     public string RequestedOutputMode { get; set; }
     public string ActualOutputMode { get; set; }
+    public SpatialAudioStatus SpatialAudio { get; set; }
+    public bool FollowCameraPitch { get; set; }
+    public float[] ListenerOrientation { get; set; }
     public string[] PlaybackDevices { get; set; }
     public string[] AlExtensions { get; set; }
     public string[] AlcExtensions { get; set; }

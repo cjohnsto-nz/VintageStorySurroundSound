@@ -2,11 +2,17 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using HarmonyLib;
 using Vintagestory.Client;
+using Vintagestory.API.Datastructures;
+using Vintagestory.Client.NoObf;
 
 namespace SurroundSoundLab;
 
 public class SurroundSoundLabModSystem : ModSystem
 {
+    private const string ConfigLibConfigSavedEvent = "configlib:vintagestorysurroundsound:config-saved";
+    private const string ConfigLibConfigReloadEvent = "configlib:config-reload";
+
+    private ICoreAPI api;
     private ICoreClientAPI clientApi;
     private Harmony harmony;
     private ChannelTestService testService;
@@ -21,7 +27,9 @@ public class SurroundSoundLabModSystem : ModSystem
     public override void Start(ICoreAPI api)
     {
         base.Start(api);
+        this.api = api;
         SurroundSoundLabConfigManager.Load(api, Mod.Logger);
+        RegisterConfigReloadListeners(api);
     }
 
     public override void StartClientSide(ICoreClientAPI api)
@@ -30,41 +38,136 @@ public class SurroundSoundLabModSystem : ModSystem
         clientApi = api;
         harmony = new Harmony("vintagestorysurroundsound.audioopenal");
         harmony.PatchAll();
-        SoundOcclusion.Initialize(api);
-        EntitySoundPosTrackingController.Initialize(api);
         CustomSoundRegistry.Register(api, Mod.Logger);
-        if (SurroundSoundLabConfigManager.Current.ReplaceVanillaWeatherBeds)
+        api.Input.RegisterHotKey("vintagestorysurroundsound.toggledebug", "Surround Sound: Toggle Debug Panel", GlKeys.F9, HotkeyType.GUIOrOtherControls);
+        api.Input.SetHotKeyHandler("vintagestorysurroundsound.toggledebug", OnToggleDebugPanel);
+        ApplyRuntimeConfig();
+    }
+
+    private void RegisterConfigReloadListeners(ICoreAPI api)
+    {
+        api.Event.RegisterEventBusListener(OnConfigLibConfigSaved, filterByEventName: ConfigLibConfigSavedEvent);
+        api.Event.RegisterEventBusListener(OnConfigLibConfigReload, filterByEventName: ConfigLibConfigReloadEvent);
+    }
+
+    private void OnConfigLibConfigSaved(string eventName, ref EnumHandling handling, IAttribute data)
+    {
+        if (!IsOwnConfigEvent(data))
         {
-            WeatherBedOverrides.Apply(api, Mod.Logger);
+            return;
         }
-        RecreateGameAudioContext(api);
-        if (SurroundSoundLabConfigManager.Current.EnableExperimentalLeafRustleEmitters)
+
+        ReloadAndApplyConfig();
+    }
+
+    private void OnConfigLibConfigReload(string eventName, ref EnumHandling handling, IAttribute data)
+    {
+        if (!IsOwnConfigEvent(data))
         {
-            leafRustleEmitterSystem = new LeafRustleEmitterSystem(api);
-            leafRustleDebugRenderer = new LeafRustleDebugRenderer(api, leafRustleEmitterSystem);
-            api.Event.RegisterRenderer(leafRustleDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-leafdebug");
+            return;
         }
-        if (SurroundSoundLabConfigManager.Current.EnableExperimentalRainEmitters)
+
+        ReloadAndApplyConfig();
+    }
+
+    private bool IsOwnConfigEvent(IAttribute data)
+    {
+        return (data as ITreeAttribute)?.GetAsString("domain") == Mod.Info.ModID;
+    }
+
+    private void ReloadAndApplyConfig()
+    {
+        if (api == null)
         {
-            rainEmitterSystem = new RainEmitterSystem(api);
-            if (SurroundSoundLabConfigManager.Current.EnableDebugTools && SurroundSoundLabConfigManager.Current.ShowRainEmitterDebugVisuals)
+            return;
+        }
+
+        SurroundSoundLabConfigManager.Load(api, Mod.Logger);
+
+        if (clientApi != null)
+        {
+            ApplyRuntimeConfig();
+        }
+    }
+
+    private void ApplyRuntimeConfig()
+    {
+        if (clientApi == null)
+        {
+            return;
+        }
+
+        SurroundSoundLabConfig config = SurroundSoundLabConfigManager.Current;
+
+        SoundOcclusion.Initialize(clientApi);
+
+        if (config.EffectiveEnableEntitySoundPosTracking)
+        {
+            EntitySoundPosTrackingController.Initialize(clientApi);
+        }
+        else
+        {
+            EntitySoundPosTrackingController.Dispose();
+        }
+
+        if (config.ReplaceVanillaWeatherBeds)
+        {
+            WeatherBedOverrides.Apply(clientApi, Mod.Logger);
+        }
+        else
+        {
+            WeatherBedOverrides.Restore(Mod.Logger);
+        }
+
+        RecreateGameAudioContext(clientApi);
+        RecreateEmitterSystems(config);
+        RecreateDebugTools(config);
+    }
+
+    private void RecreateEmitterSystems(SurroundSoundLabConfig config)
+    {
+        DisposeLeafRustleRuntime();
+        DisposeRainRuntime();
+
+        if (config.EffectiveEnableExperimentalLeafRustleEmitters)
+        {
+            leafRustleEmitterSystem = new LeafRustleEmitterSystem(clientApi);
+            leafRustleDebugRenderer = new LeafRustleDebugRenderer(clientApi, leafRustleEmitterSystem);
+            clientApi.Event.RegisterRenderer(leafRustleDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-leafdebug");
+        }
+
+        if (config.EffectiveEnableExperimentalRainEmitters)
+        {
+            rainEmitterSystem = new RainEmitterSystem(clientApi);
+            if (config.EnableDebugTools && config.EffectiveShowRainEmitterDebugVisuals)
             {
-                rainEmitterDebugRenderer = new RainEmitterDebugRenderer(api, rainEmitterSystem);
-                api.Event.RegisterRenderer(rainEmitterDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-raindebug");
+                rainEmitterDebugRenderer = new RainEmitterDebugRenderer(clientApi, rainEmitterSystem);
+                clientApi.Event.RegisterRenderer(rainEmitterDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-raindebug");
             }
         }
-        if (SurroundSoundLabConfigManager.Current.EnableDebugTools)
+    }
+
+    private void RecreateDebugTools(SurroundSoundLabConfig config)
+    {
+        DisposeDebugUiRuntime();
+        DisposeEntityDebugRenderers();
+
+        if (!config.EnableDebugTools)
         {
-            entitySoundOcclusionDebugRenderer = new EntitySoundOcclusionDebugRenderer(api);
-            api.Event.RegisterRenderer(entitySoundOcclusionDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-entityocclusiondebug");
-            entitySoundPosTrackingDebugRenderer = new EntitySoundPosTrackingDebugRenderer(api);
-            api.Event.RegisterRenderer(entitySoundPosTrackingDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-entitytrackingdebug");
-            testService = new ChannelTestService(api);
-            debugDialog = new SurroundDebugDialog(api, testService, leafRustleEmitterSystem, rainEmitterSystem);
-            api.Gui.RegisterDialog(debugDialog);
-            api.Input.RegisterHotKey("vintagestorysurroundsound.toggledebug", "Surround Sound: Toggle Debug Panel", GlKeys.F9, HotkeyType.GUIOrOtherControls);
-            api.Input.SetHotKeyHandler("vintagestorysurroundsound.toggledebug", OnToggleDebugPanel);
+            return;
         }
+
+        if (!config.LiteMode)
+        {
+            entitySoundOcclusionDebugRenderer = new EntitySoundOcclusionDebugRenderer(clientApi);
+            clientApi.Event.RegisterRenderer(entitySoundOcclusionDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-entityocclusiondebug");
+            entitySoundPosTrackingDebugRenderer = new EntitySoundPosTrackingDebugRenderer(clientApi);
+            clientApi.Event.RegisterRenderer(entitySoundPosTrackingDebugRenderer, EnumRenderStage.Opaque, "vintagestorysurroundsound-entitytrackingdebug");
+        }
+
+        testService = new ChannelTestService(clientApi);
+        debugDialog = new SurroundDebugDialog(clientApi, testService, leafRustleEmitterSystem, rainEmitterSystem);
+        clientApi.Gui.RegisterDialog(debugDialog);
     }
 
     private static void RecreateGameAudioContext(ICoreClientAPI api)
@@ -93,6 +196,20 @@ public class SurroundSoundLabModSystem : ModSystem
 
     public override void Dispose()
     {
+        DisposeLeafRustleRuntime();
+        DisposeRainRuntime();
+        DisposeEntityDebugRenderers();
+        DisposeDebugUiRuntime();
+        EntitySoundPosTrackingController.Dispose();
+        SoundOcclusion.Dispose();
+        WeatherBedOverrides.Restore(Mod.Logger);
+        harmony?.UnpatchAll(harmony.Id);
+        clientApi = null;
+        base.Dispose();
+    }
+
+    private void DisposeLeafRustleRuntime()
+    {
         if (leafRustleDebugRenderer != null)
         {
             if (clientApi != null)
@@ -103,6 +220,13 @@ public class SurroundSoundLabModSystem : ModSystem
             leafRustleDebugRenderer.Dispose();
             leafRustleDebugRenderer = null;
         }
+
+        leafRustleEmitterSystem?.Dispose();
+        leafRustleEmitterSystem = null;
+    }
+
+    private void DisposeRainRuntime()
+    {
         if (rainEmitterDebugRenderer != null)
         {
             if (clientApi != null)
@@ -113,6 +237,13 @@ public class SurroundSoundLabModSystem : ModSystem
             rainEmitterDebugRenderer.Dispose();
             rainEmitterDebugRenderer = null;
         }
+
+        rainEmitterSystem?.Dispose();
+        rainEmitterSystem = null;
+    }
+
+    private void DisposeEntityDebugRenderers()
+    {
         if (entitySoundOcclusionDebugRenderer != null)
         {
             if (clientApi != null)
@@ -123,6 +254,7 @@ public class SurroundSoundLabModSystem : ModSystem
             entitySoundOcclusionDebugRenderer.Dispose();
             entitySoundOcclusionDebugRenderer = null;
         }
+
         if (entitySoundPosTrackingDebugRenderer != null)
         {
             if (clientApi != null)
@@ -133,14 +265,23 @@ public class SurroundSoundLabModSystem : ModSystem
             entitySoundPosTrackingDebugRenderer.Dispose();
             entitySoundPosTrackingDebugRenderer = null;
         }
+    }
 
-        leafRustleEmitterSystem?.Dispose();
-        rainEmitterSystem?.Dispose();
-        EntitySoundPosTrackingController.Dispose();
-        SoundOcclusion.Dispose();
+    private void DisposeDebugUiRuntime()
+    {
+        if (debugDialog != null)
+        {
+            debugDialog.TryClose();
+            if (clientApi?.World is ClientMain clientMain)
+            {
+                clientMain.UnregisterDialog(debugDialog);
+            }
+
+            debugDialog.Dispose();
+            debugDialog = null;
+        }
+
         testService?.Dispose();
-        harmony?.UnpatchAll(harmony.Id);
-        clientApi = null;
-        base.Dispose();
+        testService = null;
     }
 }

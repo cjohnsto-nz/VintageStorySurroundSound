@@ -21,7 +21,7 @@ internal sealed class RainEmitterDebugRenderer : IRenderer
 
     public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
     {
-        if (!SurroundSoundLabConfigManager.Current.EnableDebugTools || !SurroundSoundLabConfigManager.Current.ShowRainEmitterDebugVisuals || stage != EnumRenderStage.Opaque)
+        if (!SurroundSoundLabConfigManager.Current.EnableDebugTools || !SurroundSoundLabConfigManager.Current.EffectiveShowRainEmitterDebugVisuals || stage != EnumRenderStage.Opaque)
         {
             return;
         }

@@ -1,0 +1,38 @@
+diff --git a/alc/backends/wasapi.cpp b/alc/backends/wasapi.cpp
+index 4a15be4..c7d030a 100644
+--- a/alc/backends/wasapi.cpp
++++ b/alc/backends/wasapi.cpp
+@@ -27,6 +27,9 @@
+ #include <cstdio>
+ #include <cstdlib>
+ #include <memory.h>
++// Surround Sound modification, 2026-09-12: own VT_BLOB memory and log
++// successful Windows spatial stream activation. See MODIFICATIONS.txt.
++#include <new>
+ 
+ #include <avrt.h>
+ #include <wtypes.h>
+@@ -257,7 +260,13 @@ public:
+         mProp.vt = VT_BLOB;
+         mProp.blob.cbSize = gsl::narrow_cast<ULONG>(data.size());
+         /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast) */
+-        mProp.blob.pBlobData = reinterpret_cast<BYTE*>(data.data());
++        mProp.blob.pBlobData = static_cast<BYTE*>(CoTaskMemAlloc(data.size()));
++        if(!mProp.blob.pBlobData)
++        {
++            mProp.blob.cbSize = 0;
++            throw std::bad_alloc{};
++        }
++        std::memcpy(mProp.blob.pBlobData, data.data(), data.size());
+     }
+     /* NOLINTEND(cppcoreguidelines-pro-type-union-access) */
+ };
+@@ -1909,6 +1918,8 @@ auto WasapiPlayback::initSpatial(DeviceHelper &helper, DeviceHandle &mmdev, Spat
+         return false;
+     }
+ 
++    TRACE("Spatial audio stream activated: static mask {:#x}",
++        static_cast<unsigned>(streamParams.StaticObjectTypeMask));
+     audio.mStaticMask = streamParams.StaticObjectTypeMask;
+     mFormat = OutputType;
+ 

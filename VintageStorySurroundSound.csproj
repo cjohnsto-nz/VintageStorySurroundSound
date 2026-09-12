@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="tests\**\*.cs;tools\**\*.cs" />
     <Reference Include="VintagestoryAPI.dll">
       <HintPath>$(GamePath)\VintagestoryAPI.dll</HintPath>
       <Private>false</Private>
@@ -35,6 +36,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="assets\vintagestorysurroundsound\config\configlib-patches.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>assets\vintagestorysurroundsound\config\configlib-patches.json</PackagePath>
+    </Content>
     <Content Include="Audio\Assets\rain-surround-loud.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
@@ -55,25 +61,25 @@
       <Pack>true</Pack>
       <PackagePath>assets\vintagestorysurroundsound\sounds\weather\tracks\rain-surround-quiet.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\rain-mono-1.wav">
+    <Content Include="Audio\Assets\rain-mono-1.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-1.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-1.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\rain-mono-2.wav">
+    <Content Include="Audio\Assets\rain-mono-2.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-2.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-2.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\rain-mono-3.wav">
+    <Content Include="Audio\Assets\rain-mono-3.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-3.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-3.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\rain-mono-4.wav">
+    <Content Include="Audio\Assets\rain-mono-4.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-4.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\weather\rain-mono-4.ogg</PackagePath>
     </Content>
     <Content Include="Audio\Assets\wind-surround-leafless2.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -100,25 +106,25 @@
       <Pack>true</Pack>
       <PackagePath>assets\vintagestorysurroundsound\sounds\weather\hail.wav</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\leaves-mono-1.wav">
+    <Content Include="Audio\Assets\leaves-mono-1.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\foliage\leaves-mono-1.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\foliage\leaves-mono-1.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\leaves-mono-2.wav">
+    <Content Include="Audio\Assets\leaves-mono-2.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\foliage\leaves-mono-2.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\foliage\leaves-mono-2.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\leaves-mono-3.wav">
+    <Content Include="Audio\Assets\leaves-mono-3.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\foliage\leaves-mono-3.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\foliage\leaves-mono-3.ogg</PackagePath>
     </Content>
-    <Content Include="Audio\Assets\leaves-mono-4.wav">
+    <Content Include="Audio\Assets\leaves-mono-4.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Pack>true</Pack>
-      <PackagePath>assets\vintagestorysurroundsound\sounds\foliage\leaves-mono-4.wav</PackagePath>
+      <PackagePath>assets\vintagestorysurroundsound\sounds\foliage\leaves-mono-4.ogg</PackagePath>
     </Content>
   </ItemGroup>
 
@@ -129,6 +135,7 @@
       <FullModPackagePath>$(OutputPath)\$(ModPackageDir)</FullModPackagePath>
     </PropertyGroup>
 
+    <RemoveDir Directories="$(FullModPackagePath)" />
     <MakeDir Directories="$(FullModPackagePath)" />
     <Copy SourceFiles="modinfo.json" DestinationFolder="$(FullModPackagePath)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(FullModPackagePath)" />

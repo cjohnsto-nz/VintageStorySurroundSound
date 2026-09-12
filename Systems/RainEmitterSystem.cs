@@ -126,7 +126,7 @@ internal sealed class RainEmitterSystem : IDisposable
 
     private void OnGameTick(float deltaTime)
     {
-        if (!SurroundSoundLabConfigManager.Current.EnableExperimentalRainEmitters)
+        if (!SurroundSoundLabConfigManager.Current.EffectiveEnableExperimentalRainEmitters)
         {
             return;
         }
@@ -317,7 +317,7 @@ internal sealed class RainEmitterSystem : IDisposable
         capi.World.PlaySoundAt(alias, candidate.X, candidate.Y, candidate.Z, null, EnumSoundType.Ambient, pitch, PlaybackRange, adjustedVolume);
         activeEmitters[slotIndex] = new ActiveRainEmitterState(nowMs + EmitterLifetimeMs, candidate.X, candidate.Y, candidate.Z, quadrant);
 
-        if (SurroundSoundLabConfigManager.Current.EnableDebugTools && SurroundSoundLabConfigManager.Current.ShowRainEmitterDebugVisuals)
+        if (SurroundSoundLabConfigManager.Current.EnableDebugTools && SurroundSoundLabConfigManager.Current.EffectiveShowRainEmitterDebugVisuals)
         {
             lock (visualsLock)
             {

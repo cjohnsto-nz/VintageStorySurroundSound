@@ -22,7 +22,7 @@ internal sealed class LeafRustleDebugRenderer : IRenderer
 
     public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
     {
-        if (!SurroundSoundLabConfigManager.Current.ShowLeafRustleDebugVisuals || stage != EnumRenderStage.Opaque)
+        if (!SurroundSoundLabConfigManager.Current.EffectiveShowLeafRustleDebugVisuals || stage != EnumRenderStage.Opaque)
         {
             return;
         }

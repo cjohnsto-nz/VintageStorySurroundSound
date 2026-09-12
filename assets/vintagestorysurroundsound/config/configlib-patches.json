@@ -1,0 +1,521 @@
+{
+  "version": 1,
+  "file": "vintagestorysurroundsound.json",
+  "patches": {},
+  "settings": [
+    {
+      "type": "separator",
+      "title": "General"
+    },
+    {
+      "code": "LiteMode",
+      "type": "boolean",
+      "default": false,
+      "clientSide": true,
+      "ingui": "Lite mode",
+      "comment": "Disable the heavier surround processing features."
+    },
+    {
+      "code": "EnableDebugTools",
+      "type": "boolean",
+      "default": false,
+      "clientSide": true,
+      "ingui": "Enable debug tools",
+      "comment": "Enable the surround debug panel and debug renderers."
+    },
+    {
+      "code": "EnableSoundAudit",
+      "type": "boolean",
+      "default": false,
+      "clientSide": true,
+      "ingui": "Enable sound audit",
+      "comment": "Write detailed sound-audit events to the surround session log."
+    },
+    {
+      "type": "separator",
+      "title": "Output"
+    },
+    {
+      "code": "OutputMode",
+      "type": "integer",
+      "default": "Auto",
+      "clientSide": true,
+      "ingui": "Output mode",
+      "comment": "Preferred output mode. WindowsSpatialAudio requires the spatial runtime and game-local startup configuration, then a full restart. Enable Dolby Atmos for home theater on the Windows HDMI endpoint.",
+      "mapping": {
+        "Auto": 0,
+        "StereoBasic": 1,
+        "Stereo": 2,
+        "StereoHrtf": 3,
+        "Quad": 4,
+        "Surround5Point1": 5,
+        "Surround6Point1": 6,
+        "Surround7Point1": 7,
+        "WindowsSpatialAudio": 8
+      }
+    },
+    {
+      "code": "FollowCameraPitch",
+      "type": "boolean",
+      "default": true,
+      "clientSide": true,
+      "ingui": "Follow camera pitch",
+      "comment": "Tilt positional audio with the player view when looking up or down. Off keeps the original yaw-only listener."
+    },
+    {
+      "code": "ListenerBackwardOffset",
+      "type": "float",
+      "default": 0.5,
+      "clientSide": true,
+      "ingui": "Listener backward offset",
+      "comment": "Move the virtual listener slightly behind the camera.",
+      "range": {
+        "min": -2.0,
+        "max": 4.0,
+        "step": 0.05
+      }
+    },
+    {
+      "code": "UpmixStereoToSurround",
+      "type": "boolean",
+      "default": true,
+      "clientSide": true,
+      "ingui": "Upmix stereo to surround",
+      "comment": "Expand stereo sources into the selected surround layout."
+    },
+    {
+      "code": "StereoUpmixGainDb",
+      "type": "float",
+      "default": -6.0,
+      "clientSide": true,
+      "ingui": "Stereo upmix gain (dB)",
+      "comment": "Gain applied when stereo sources are upmixed.",
+      "range": {
+        "min": -24.0,
+        "max": 6.0,
+        "step": 0.5
+      }
+    },
+    {
+      "code": "ReplaceVanillaWeatherBeds",
+      "type": "boolean",
+      "default": true,
+      "clientSide": true,
+      "ingui": "Replace vanilla weather beds",
+      "comment": "Swap the vanilla weather bed sounds for the surround replacements."
+    },
+    {
+      "code": "SoundRangeMultiplier",
+      "type": "float",
+      "default": 3.0,
+      "clientSide": true,
+      "ingui": "Sound range multiplier",
+      "comment": "Multiply the max distance of supported sounds.",
+      "range": {
+        "min": 0.1,
+        "max": 10.0,
+        "step": 0.1
+      }
+    },
+    {
+      "type": "separator",
+      "title": "Leaf Rustle"
+    },
+    {
+      "code": "EnableExperimentalLeafRustleEmitters",
+      "type": "boolean",
+      "default": true,
+      "clientSide": true,
+      "ingui": "Enable leaf rustle emitters",
+      "comment": "Use the experimental foliage rustle emitter system."
+    },
+    {
+      "code": "LeafRustleVolumeMultiplier",
+      "type": "float",
+      "default": 1.75,
+      "clientSide": true,
+      "ingui": "Leaf rustle volume multiplier",
+      "comment": "Scale foliage rustle emitter volume.",
+      "range": {
+        "min": 0.0,
+        "max": 5.0,
+        "step": 0.05
+      }
+    },
+    {
+      "code": "LeafRustlePitchVariationMultiplier",
+      "type": "float",
+      "default": 1.5,
+      "clientSide": true,
+      "ingui": "Leaf rustle pitch variation",
+      "comment": "Scale foliage rustle pitch variation.",
+      "range": {
+        "min": 0.0,
+        "max": 5.0,
+        "step": 0.05
+      }
+    },
+    {
+      "code": "ShowLeafRustleDebugVisuals",
+      "type": "boolean",
+      "default": false,
+      "clientSide": true,
+      "ingui": "Show leaf rustle debug visuals",
+      "comment": "Render leaf rustle emitter debug visuals when debug tools are enabled."
+    },
+    {
+      "type": "separator",
+      "title": "Rain Emitters"
+    },
+    {
+      "code": "EnableExperimentalRainEmitters",
+      "type": "boolean",
+      "default": true,
+      "clientSide": true,
+      "ingui": "Enable rain emitters",
+      "comment": "Use the experimental rain emitter system."
+    },
+    {
+      "code": "ShowRainEmitterDebugVisuals",
+      "type": "boolean",
+      "default": false,
+      "clientSide": true,
+      "ingui": "Show rain emitter debug visuals",
+      "comment": "Render rain emitter debug visuals when debug tools are enabled."
+    },
+    {
+      "type": "separator",
+      "title": "Entity Tracking"
+    },
+    {
+      "code": "EnableEntitySoundPosTracking",
+      "type": "boolean",
+      "default": true,
+      "clientSide": true,
+      "ingui": "Enable entity sound position tracking",
+      "comment": "Track sound positions against their source entities."
+    },
+    {
+      "code": "EnableEntitySoundPosTrackingInference",
+      "type": "boolean",
+      "default": true,
+      "clientSide": true,
+      "ingui": "Enable tracking inference",
+      "comment": "Infer entity positions for sounds that do not provide enough metadata."
+    },
+    {
+      "code": "EntitySoundPosTrackingUpdateMs",
+      "type": "integer",
+      "default": 16,
+      "clientSide": true,
+      "ingui": "Tracking update interval (ms)",
+      "comment": "How often tracked entity sounds are updated.",
+      "range": {
+        "min": 1,
+        "max": 1000,
+        "step": 1
+      }
+    },
+    {
+      "code": "MaxTrackedEntitySounds",
+      "type": "integer",
+      "default": 128,
+      "clientSide": true,
+      "ingui": "Max tracked entity sounds",
+      "comment": "Hard cap for concurrently tracked entity sounds.",
+      "range": {
+        "min": 1,
+        "max": 1024,
+        "step": 1
+      }
+    },
+    {
+      "code": "EntitySoundPosTrackingInferenceMaxDistance",
+      "type": "float",
+      "default": 1.25,
+      "clientSide": true,
+      "ingui": "Inference max distance",
+      "comment": "Maximum inference distance in blocks when approximating a sound source position.",
+      "range": {
+        "min": 0.0,
+        "max": 20.0,
+        "step": 0.05
+      }
+    },
+    {
+      "code": "ShowEntitySoundPosTrackingDebugVisuals",
+      "type": "boolean",
+      "default": false,
+      "clientSide": true,
+      "ingui": "Show entity tracking debug visuals",
+      "comment": "Render tracked entity sound debug visuals when debug tools are enabled."
+    },
+    {
+      "code": "FreezeOneShotEntitySoundsOnDespawn",
+      "type": "boolean",
+      "default": true,
+      "clientSide": true,
+      "ingui": "Freeze one-shot sounds on despawn",
+      "comment": "Keep one-shot sounds in place when their source entity despawns."
+    },
+    {
+      "code": "StopLoopingEntitySoundsOnDespawn",
+      "type": "boolean",
+      "default": true,
+      "clientSide": true,
+      "ingui": "Stop looping sounds on despawn",
+      "comment": "Stop looping sounds when their source entity despawns."
+    },
+    {
+      "type": "separator",
+      "title": "Occlusion"
+    },
+    {
+      "code": "EnableEntitySoundBlockOcclusion",
+      "type": "boolean",
+      "default": true,
+      "clientSide": true,
+      "ingui": "Enable entity sound occlusion",
+      "comment": "Apply block-based occlusion to tracked entity sounds."
+    },
+    {
+      "code": "EnableStaticSoundBlockOcclusion",
+      "type": "boolean",
+      "default": true,
+      "clientSide": true,
+      "ingui": "Enable static sound occlusion",
+      "comment": "Apply block-based occlusion to supported static positional sounds."
+    },
+    {
+      "code": "LimitStaticSoundBlockOcclusionToWhitelist",
+      "type": "boolean",
+      "default": true,
+      "clientSide": true,
+      "ingui": "Limit static occlusion to whitelist",
+      "comment": "Only apply static sound occlusion to whitelisted sound name fragments."
+    },
+    {
+      "code": "StaticSoundBlockOcclusionSoundWhitelistText",
+      "type": "string",
+      "default": "water, anvil, quern, pulverizer, helvehammer, hammer",
+      "clientSide": true,
+      "ingui": "Static occlusion whitelist",
+      "comment": "Comma-separated list of sound name fragments allowed to receive static occlusion."
+    },
+    {
+      "code": "EntitySoundBlockOcclusionMaxBlocks",
+      "type": "integer",
+      "default": 8,
+      "clientSide": true,
+      "ingui": "Occlusion max blocks",
+      "comment": "Maximum number of occluding blocks counted along the ray.",
+      "range": {
+        "min": 0,
+        "max": 64,
+        "step": 1
+      }
+    },
+    {
+      "code": "EntitySoundBlockOcclusionRefreshMs",
+      "type": "integer",
+      "default": 500,
+      "clientSide": true,
+      "ingui": "Occlusion refresh interval (ms)",
+      "comment": "How often static and dynamic occlusion can be recalculated.",
+      "range": {
+        "min": 1,
+        "max": 5000,
+        "step": 1
+      }
+    },
+    {
+      "code": "EntitySoundBlockOcclusionMinDistance",
+      "type": "float",
+      "default": 2.0,
+      "clientSide": true,
+      "ingui": "Occlusion minimum distance",
+      "comment": "Minimum listener-to-sound distance before occlusion begins.",
+      "range": {
+        "min": 0.0,
+        "max": 20.0,
+        "step": 0.05
+      }
+    },
+    {
+      "code": "EntitySoundBlockOcclusionMinOutsideRoomUnits",
+      "type": "float",
+      "default": 2.0,
+      "clientSide": true,
+      "ingui": "Outside-room minimum occlusion",
+      "comment": "Minimum occlusion units when the listener and sound are in different rooms.",
+      "range": {
+        "min": 0.0,
+        "max": 20.0,
+        "step": 0.05
+      }
+    },
+    {
+      "code": "EntitySoundBlockOcclusionVolumePerBlock",
+      "type": "float",
+      "default": 0.78,
+      "clientSide": true,
+      "ingui": "Volume per occluding block",
+      "comment": "Per-block volume multiplier for occlusion.",
+      "range": {
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01
+      }
+    },
+    {
+      "code": "EntitySoundBlockOcclusionLowPassPerBlock",
+      "type": "float",
+      "default": 0.8,
+      "clientSide": true,
+      "ingui": "Low-pass per occluding block",
+      "comment": "Per-block low-pass multiplier for occlusion.",
+      "range": {
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01
+      }
+    },
+    {
+      "code": "EntitySoundBlockOcclusionMinVolumeFactor",
+      "type": "float",
+      "default": 0.08,
+      "clientSide": true,
+      "ingui": "Minimum occluded volume",
+      "comment": "Clamp floor for occluded volume.",
+      "range": {
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01
+      }
+    },
+    {
+      "code": "EntitySoundBlockOcclusionMinLowPass",
+      "type": "float",
+      "default": 0.04,
+      "clientSide": true,
+      "ingui": "Minimum occluded low-pass",
+      "comment": "Clamp floor for occluded low-pass filtering.",
+      "range": {
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01
+      }
+    },
+    {
+      "code": "ShowEntitySoundOcclusionDebugRays",
+      "type": "boolean",
+      "default": false,
+      "clientSide": true,
+      "ingui": "Show occlusion debug rays",
+      "comment": "Render sound occlusion debug rays when debug tools are enabled."
+    },
+    {
+      "type": "separator",
+      "title": "Doppler"
+    },
+    {
+      "code": "EnableEntitySoundDoppler",
+      "type": "boolean",
+      "default": false,
+      "clientSide": true,
+      "ingui": "Enable entity sound doppler",
+      "comment": "Apply doppler pitch shifting to tracked entity sounds."
+    },
+    {
+      "code": "EntitySoundDopplerStrength",
+      "type": "float",
+      "default": 1.0,
+      "clientSide": true,
+      "ingui": "Doppler strength",
+      "comment": "Overall strength of the doppler effect.",
+      "range": {
+        "min": 0.0,
+        "max": 5.0,
+        "step": 0.05
+      }
+    },
+    {
+      "code": "EntitySoundDopplerSpeedOfSound",
+      "type": "float",
+      "default": 343.0,
+      "clientSide": true,
+      "ingui": "Speed of sound",
+      "comment": "Speed of sound used for doppler calculations.",
+      "range": {
+        "min": 1.0,
+        "max": 2000.0,
+        "step": 1.0
+      }
+    },
+    {
+      "code": "EntitySoundDopplerMinPitchFactor",
+      "type": "float",
+      "default": 0.5,
+      "clientSide": true,
+      "ingui": "Minimum doppler pitch factor",
+      "comment": "Lower clamp for doppler pitch.",
+      "range": {
+        "min": 0.1,
+        "max": 3.0,
+        "step": 0.01
+      }
+    },
+    {
+      "code": "EntitySoundDopplerMaxPitchFactor",
+      "type": "float",
+      "default": 2.0,
+      "clientSide": true,
+      "ingui": "Maximum doppler pitch factor",
+      "comment": "Upper clamp for doppler pitch.",
+      "range": {
+        "min": 0.1,
+        "max": 3.0,
+        "step": 0.01
+      }
+    },
+    {
+      "code": "EntitySoundDopplerVelocitySmoothingSeconds",
+      "type": "float",
+      "default": 0.35,
+      "clientSide": true,
+      "ingui": "Velocity smoothing seconds",
+      "comment": "Smoothing window for doppler velocity calculations.",
+      "range": {
+        "min": 0.001,
+        "max": 5.0,
+        "step": 0.01
+      }
+    },
+    {
+      "code": "EntitySoundDopplerPitchSmoothingSeconds",
+      "type": "float",
+      "default": 0.18,
+      "clientSide": true,
+      "ingui": "Pitch smoothing seconds",
+      "comment": "Smoothing window for doppler pitch changes.",
+      "range": {
+        "min": 0.001,
+        "max": 5.0,
+        "step": 0.01
+      }
+    },
+    {
+      "code": "EntitySoundDopplerDeadZoneBlocksPerSecond",
+      "type": "float",
+      "default": 0.08,
+      "clientSide": true,
+      "ingui": "Doppler dead zone",
+      "comment": "Ignore small relative velocities below this threshold.",
+      "range": {
+        "min": 0.0,
+        "max": 5.0,
+        "step": 0.01
+      }
+    }
+  ]
+}

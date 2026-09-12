@@ -15,6 +15,7 @@ internal sealed class SurroundDebugDialog : GuiDialog
     private AudioTestContextType selectedContext = AudioTestContextType.GameContext;
     private string pendingObservationTestId;
     private long liveRefreshListenerId;
+    private readonly SpatialAudioDialog spatialDialog;
 
     public override string ToggleKeyCombinationCode => null;
     public override double DrawOrder => 0.2;
@@ -22,6 +23,7 @@ internal sealed class SurroundDebugDialog : GuiDialog
     public SurroundDebugDialog(ICoreClientAPI capi, ChannelTestService testService, LeafRustleEmitterSystem leafRustleEmitterSystem, RainEmitterSystem rainEmitterSystem) : base(capi)
     {
         this.testService = testService;
+        spatialDialog = new SpatialAudioDialog(capi, testService);
         this.leafRustleEmitterSystem = leafRustleEmitterSystem;
         this.rainEmitterSystem = rainEmitterSystem;
         latestReport = AudioCapabilityReportWriter.CaptureReport();
@@ -61,6 +63,7 @@ internal sealed class SurroundDebugDialog : GuiDialog
             .AddSmallButton("Write Report", () => OnWriteReport(), ElementStdBounds.MenuButton(5.2f).WithFixedWidth(180))
             .AddSmallButton("Probe Lab Context", () => OnProbeLabContext(), ElementStdBounds.MenuButton(5.2f, EnumDialogArea.RightFixed).WithFixedWidth(180))
             .AddSmallButton("Write Audit Summary", () => OnWriteAuditSummary(), ElementStdBounds.MenuButton(5.7f, EnumDialogArea.LeftFixed).WithFixedWidth(180))
+            .AddSmallButton("Spatial Audio", () => { TryClose(); spatialDialog.TryOpen(); return true; }, ElementStdBounds.MenuButton(5.7f, EnumDialogArea.RightFixed).WithFixedWidth(180))
             .AddSmallButton("Use Game Context", () => SetContext(AudioTestContextType.GameContext), ElementStdBounds.MenuButton(6.2f, EnumDialogArea.LeftFixed).WithFixedWidth(180))
             .AddSmallButton("Use Lab Context", () => SetContext(AudioTestContextType.LabContext), ElementStdBounds.MenuButton(6.2f).WithFixedWidth(180))
             .AddSmallButton("Use Engine Patch", () => SetContext(AudioTestContextType.PatchedEnginePath), ElementStdBounds.MenuButton(6.2f, EnumDialogArea.RightFixed).WithFixedWidth(180))
@@ -324,6 +327,12 @@ internal sealed class SurroundDebugDialog : GuiDialog
 
     public override void Dispose()
     {
+        spatialDialog.TryClose();
+        if (capi.World is Vintagestory.Client.NoObf.ClientMain clientMain)
+            clientMain.UnregisterDialog(spatialDialog);
+        spatialDialog.Dispose();
+        testService.TestCompleted -= OnTestCompleted;
+        testService.LabProbeCompleted -= OnLabProbeCompleted;
         UnregisterLiveRefresh();
         base.Dispose();
     }

@@ -150,7 +150,7 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
 
     private void OnGameTick(float deltaTime)
     {
-        if (!SurroundSoundLabConfigManager.Current.EnableExperimentalLeafRustleEmitters)
+        if (!SurroundSoundLabConfigManager.Current.EffectiveEnableExperimentalLeafRustleEmitters)
         {
             return;
         }
@@ -922,7 +922,7 @@ internal sealed class LeafRustleEmitterSystem : IDisposable
 
     private void RegisterDebugEmitter(double x, double y, double z, LeafRustleEmitterRing ring, long nowMs, float volume)
     {
-        if (!SurroundSoundLabConfigManager.Current.ShowLeafRustleDebugVisuals)
+        if (!SurroundSoundLabConfigManager.Current.EffectiveShowLeafRustleDebugVisuals)
         {
             return;
         }

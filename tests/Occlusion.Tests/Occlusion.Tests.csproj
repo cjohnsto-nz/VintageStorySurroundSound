@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GamePath Condition="'$(GamePath)' == ''">$(APPDATA)\Vintagestory</GamePath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Audio/OcclusionGainController.cs" Link="OcclusionGainController.cs" />
+    <Reference Include="VintagestoryAPI"><HintPath>$(GamePath)\VintagestoryAPI.dll</HintPath></Reference>
+    <Reference Include="VintagestoryLib"><HintPath>$(GamePath)\VintagestoryLib.dll</HintPath></Reference>
+    <Reference Include="OpenTK.Audio.OpenAL"><HintPath>$(GamePath)\Lib\OpenTK.Audio.OpenAL.dll</HintPath></Reference>
+    <Reference Include="OpenTK.Mathematics"><HintPath>$(GamePath)\Lib\OpenTK.Mathematics.dll</HintPath></Reference>
+    <Reference Include="0Harmony"><HintPath>$(GamePath)\Lib\0Harmony.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

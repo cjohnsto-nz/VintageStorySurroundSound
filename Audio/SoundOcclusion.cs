@@ -25,7 +25,7 @@ internal static class SoundOcclusion
         Dispose();
         capi = api;
         Clear();
-        if (!SurroundSoundLabConfigManager.Current.EnableStaticSoundBlockOcclusion)
+        if (!SurroundSoundLabConfigManager.Current.EffectiveEnableStaticSoundBlockOcclusion)
         {
             return;
         }
@@ -52,6 +52,8 @@ internal static class SoundOcclusion
         {
             DebugRays.Clear();
             ActiveStaticSounds.Clear();
+            AppliedSounds.Clear();
+            OcclusionGainController.Clear();
         }
     }
 
@@ -64,9 +66,9 @@ internal static class SoundOcclusion
         }
     }
 
-    public static void ApplyInitialOcclusion(ILoadedSound sound, Vec3f soundPosition, float baseVolume)
+    public static void ApplyInitialOcclusion(ILoadedSound sound, Vec3f soundPosition)
     {
-        if (!ApplyOcclusion(sound, soundPosition, baseVolume, force: true))
+        if (!ApplyOcclusion(sound, soundPosition, force: true))
         {
             return;
         }
@@ -74,7 +76,7 @@ internal static class SoundOcclusion
 
     public static void ApplyInitialOcclusion(ILoadedSound sound)
     {
-        if (!SurroundSoundLabConfigManager.Current.EnableStaticSoundBlockOcclusion)
+        if (!SurroundSoundLabConfigManager.Current.EffectiveEnableStaticSoundBlockOcclusion)
         {
             return;
         }
@@ -90,7 +92,7 @@ internal static class SoundOcclusion
             return;
         }
 
-        ApplyInitialOcclusion(sound, soundParams.Position, soundParams.Volume);
+        ApplyInitialOcclusion(sound, soundParams.Position);
         RegisterEligibleStaticSound(sound);
     }
 
@@ -99,15 +101,15 @@ internal static class SoundOcclusion
         return sound != null && AppliedSounds.TryGetValue(sound, out _);
     }
 
-    public static void ApplyDynamicOcclusion(ILoadedSound sound, Vec3f soundPosition, float baseVolume)
+    public static void ApplyDynamicOcclusion(ILoadedSound sound, Vec3f soundPosition)
     {
-        ApplyOcclusion(sound, soundPosition, baseVolume, force: false);
+        ApplyOcclusion(sound, soundPosition, force: false);
     }
 
-    private static bool ApplyOcclusion(ILoadedSound sound, Vec3f soundPosition, float baseVolume, bool force)
+    private static bool ApplyOcclusion(ILoadedSound sound, Vec3f soundPosition, bool force)
     {
         SurroundSoundLabConfig config = SurroundSoundLabConfigManager.Current;
-        if (!config.EnableEntitySoundBlockOcclusion || sound == null || soundPosition == null)
+        if (!config.EffectiveEnableEntitySoundBlockOcclusion || sound == null || soundPosition == null)
         {
             return false;
         }
@@ -120,7 +122,6 @@ internal static class SoundOcclusion
             return false;
         }
 
-        state.BaseVolume = baseVolume;
         state.LastEvaluationMs = nowMs;
 
         Vec3f listenerPosition = GetListenerEarPosition();
@@ -152,7 +153,7 @@ internal static class SoundOcclusion
         int debugOccludingBlocks = (int)Math.Ceiling(occlusionUnits);
         RecordDebugRay(listenerPosition, soundPosition, debugOccludingBlocks, (int)Math.Ceiling(maxBlocks), volumeFactor, lowPass);
 
-        sound.SetVolume(baseVolume * volumeFactor);
+        OcclusionGainController.SetFactor(sound, volumeFactor);
         sound.SetLowPassfiltering(lowPass);
         return true;
     }
@@ -242,7 +243,7 @@ internal static class SoundOcclusion
                     continue;
                 }
 
-                ApplyOcclusion(sound, soundParams.Position, soundParams.Volume, force: false);
+                ApplyOcclusion(sound, soundParams.Position, force: false);
             }
         }
     }
@@ -420,7 +421,7 @@ internal static class SoundOcclusion
 
     private static void RecordDebugRay(Vec3f from, Vec3f to, int occludingBlocks, int maxBlocks, float volumeFactor, float lowPassFactor)
     {
-        if (!SurroundSoundLabConfigManager.Current.ShowEntitySoundOcclusionDebugRays)
+        if (!SurroundSoundLabConfigManager.Current.EffectiveShowEntitySoundOcclusionDebugRays)
         {
             return;
         }
@@ -448,7 +449,6 @@ internal static class SoundOcclusion
 
     private sealed class SoundOcclusionState
     {
-        public float BaseVolume;
         public long LastEvaluationMs;
     }
 }
